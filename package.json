@@ -1,0 +1,23 @@
+{
+  "name": "acommit",
+  "version": "0.1.0",
+  "description": "",
+  "bin": {
+    "acommit": "./bin/acommit.js"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node bin/acommit.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "chalk": "^5.6.0",
+    "commander": "^14.0.0",
+    "dotenv": "^17.2.1"
+  }
+}
