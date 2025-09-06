@@ -53,14 +53,22 @@ message:
       chore: "🔧"
 
 grouping:
-  # 커밋 단위 묶음 방식
-  # - per-file     : 파일별 커밋 1개씩
-  # - by-tag       : 태그별로 묶음
-  # - by-directory : 디렉터리 단위 묶음
-  # - none         : 자동 커밋 묶음 없음(텍스트 생성만)
-  mode: "per-file"
-  directoryDepth: 1     # by-directory일 때 기준 깊이 (1=최상위 폴더)
-  minFilesPerGroup: 2   # 그룹 생성 최소 파일 수
+  # - per-file       : 파일별 1커밋
+  # - by-tag         : 태그(feat/fix/docs/...) 버킷
+  # - by-directory   : 디렉터리 버킷
+  # - by-similarity  : 변경 내용/경로/토큰 유사도 기반 버킷
+  # - none           : 묶지 않음(메시지만 생성)
+  mode: "by-similarity"
+
+  # by-directory 전용
+  directoryDepth: 1         # 사용 시에만 의미
+
+  # by-tag / by-directory 전용
+  minFilesPerGroup: 2       # 버킷 파일 수가 미만이면 per-file로 fallback
+
+  # by-similarity 전용
+  threshold: 0.60           # 0~1, 높을수록 더 엄격하게 묶음
+  maxGroupSize: 10          # 한 그룹의 최대 파일 수
 
 diff:
   includeBinary: false      # 바이너리 파일 본문 포함 여부(보통 false 권장)

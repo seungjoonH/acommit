@@ -1,41 +1,52 @@
 # .acommit.yml (English template)
 # -----------------------------------------------------------------------------
-# acommit config. Tweak to fit your team's conventions.
-# - All keys are optional; unspecified ones fall back to defaults.
-# - Keep rich comments so the intent is clear in PRs.
+# acommit configuration file. Tweak values to match your team’s convention.
+# - All keys are optional; missing values fall back to defaults.
+# - Use comments generously to communicate intent.
 # -----------------------------------------------------------------------------
 
-version: 1  # schema version
+version: 1  # Schema version for future compatibility checks
 
 tags:
-  enabled: true
-  list: [feat, fix, docs, chore, refactor, test, perf, build, ci]
-  # style placeholders:
-  #   {tag}  : lowercase (feat)
-  #   {TAG}  : UPPERCASE (FEAT)
-  #   {Tag}  : Capitalized (Feat)
-  #   {scope}: scope string, if enabled
-  #   {sep}  : separator string
-  # examples:
-  #   "[{TAG}]"  -> "[FEAT] message"
-  #   "{tag}:"   -> "feat: message"
-  #   "{Tag}{sep}" -> "Feat message"
+  enabled: true          # Whether to use tags (true/false)
+  list:                  # Allowed tags (agree within the team)
+    - feat
+    - fix
+    - docs
+    - chore
+    - refactor
+    - test
+    - perf
+    - build
+    - ci
+  # style: tag output template
+  # Available placeholders:
+  #   {tag}   : lowercase (e.g., feat)
+  #   {TAG}   : UPPERCASE (e.g., FEAT)
+  #   {Tag}   : Capitalized (e.g., Feat)
+  #   {scope} : included when present (requires conventional.scope.enabled=true)
+  #   {sep}   : separator value
+  # Examples:
+  #   "[{TAG}]"     -> "[FEAT] Message"
+  #   "{tag}:"      -> "feat: Message"
+  #   "{Tag}{sep}"  -> "Feat Message"
   style: "{tag}:"
-  separator: " "
+  separator: " "        # Separator between tag and subject (can be used as {sep} in style)
 
 message:
-  language: "en"            # "en" | "ko"
-  # style:
-  # - verb        : short verb/noun phrases ("add init", "update config")
-  # - declarative : declarative (~s)           ("adds initial setup")
-  # - imperative  : imperative English         ("Add initial setup")
-  # - past        : past tense                 ("Added initial setup")
-  style: "imperative"
-  tone: "concise"           # "concise" | "detailed"
-  lines: "single"           # "single" | "multi"
-  wrap: 72                  # subject line guide (0 = unlimited)
+  language: "ko"        # "ko" | "en"
+  # style: sentence style
+  # - verb        : terse noun/verb style (“Add init config”, “Update settings”)
+  # - declarative : Korean “~함” style (“초기 설정을 추가함”)
+  # - imperative  : English imperative (“Add initial setup”)
+  # - past        : English past (“Added initial setup”)
+  style: "verb"
+  tone: "concise"       # "concise" | "detailed"
+  lines: "single"       # "single" (subject only) | "multi" (subject + body)
+  wrap: 72              # Subject length guide (no hard wrap)
   emoji:
     enabled: false
+    # Emoji mapping per tag (applies only if enabled=true)
     map:
       feat: "✨"
       fix: "🐛"
@@ -43,34 +54,49 @@ message:
       chore: "🔧"
 
 grouping:
-  mode: "per-file"          # per-file | by-tag | by-directory | none
-  directoryDepth: 1
-  minFilesPerGroup: 2
+  # Commit grouping modes:
+  # - per-file       : one commit per file
+  # - by-tag         : bucket by tag (feat/fix/docs/…)
+  # - by-directory   : bucket by directory
+  # - by-similarity  : bucket by semantic/path/token similarity
+  # - none           : no grouping (messages only)
+  mode: "by-similarity"
+
+  # Only for by-directory
+  directoryDepth: 1         # Applies only when mode=by-directory
+
+  # For by-tag / by-directory
+  minFilesPerGroup: 2       # Buckets smaller than this fall back to per-file
+
+  # Only for by-similarity
+  threshold: 0.60           # 0–1 (higher = stricter grouping)
+  maxGroupSize: 10          # Max files per similarity group
 
 diff:
-  includeBinary: false
-  untrackedSizeLimit: 512000
-  context: 3
+  includeBinary: false       # Include binary file contents (usually false)
+  untrackedSizeLimit: 512000 # Max bytes for new file contents (truncate beyond)
+  context: 3                 # Diff context lines (for future engines that support it)
 
 ignore:
-  files:
+  files:                     # Glob patterns to skip when generating messages
     - "package-lock.json"
     - "*.lock"
     - "dist/**"
+  # Force default tag for matched paths (optional)
   tagsForPaths:
     "docs/**": "docs"
     "scripts/**": "chore"
 
 llm:
-  provider: "gemini"        # "gemini" | "openai" | "ollama" ...
+  provider: "gemini"         # "gemini" | "openai" | "ollama" | …
   model: "gemini-2.5-flash"
-  maxPromptTokens: 200000
-  maxOutputTokens: 4000
+  maxPromptTokens: 200000    # Safety cap for prompt tokens
+  maxOutputTokens: 4000      # Safety cap for output tokens
 
 conventional:
-  compatible: false         # when true, generate "type(scope): subject"
+  compatible: false          # If true, follow Conventional Commits
   scope:
-    enabled: false
-    inferFromPath: true
-    # when enabled and style uses {scope}, e.g.:
-    #   style: "{tag}({scope}):" -> "feat(helper): message"
+    enabled: false           # Whether to print scope
+    inferFromPath: true      # Infer scope from path (e.g., src/helper -> helper)
+    # When enabled=true and style uses {scope}, example:
+    #   style: "{tag}({scope}):" -> "feat(helper): Message"
