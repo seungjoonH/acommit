@@ -1,0 +1,92 @@
+# .acommit.yml (Korean template)
+# -----------------------------------------------------------------------------
+# acommit 설정 파일입니다. 팀 컨벤션에 맞게 값들을 수정하세요.
+# - 모든 키는 선택 사항이며, 누락 시 기본값으로 대체됩니다.
+# - 주석을 충분히 달아 사용 의도를 공유하세요.
+# -----------------------------------------------------------------------------
+
+version: 1  # 스키마 버전. 추후 호환성 체크용
+
+tags:
+  enabled: true          # 태그 사용 여부 (true/false)
+  list:                  # 사용 가능한 태그 목록 (컨벤션 합의 필수)
+    - feat
+    - fix
+    - docs
+    - chore
+    - refactor
+    - test
+    - perf
+    - build
+    - ci
+  # style: 태그 출력 형식 템플릿
+  # 사용 가능한 플레이스홀더:
+  #   {tag}  : 소문자(e.g., feat)
+  #   {TAG}  : 대문자(e.g., FEAT)
+  #   {Tag}  : 첫 글자만 대문자(e.g., Feat)
+  #   {scope}: scope 값이 있을 경우 포함 (conventional.scope.enabled=true일 때)
+  #   {sep}  : separator 값
+  # 예) "[{TAG}]"  → "[FEAT] 메시지"
+  #     "{tag}:"   → "feat: 메시지"
+  #     "{Tag}{sep}" → "Feat 메시지"
+  style: "{tag}:"
+  separator: " "        # 태그와 본문 사이 구분자. style 안에서 {sep}로도 사용 가능
+
+message:
+  language: "ko"        # "ko" | "en"
+  # style: 문장 스타일
+  # - verb        : 동사/명사 중심 간결체 ("초기 설정 추가", "설정 수정")
+  # - declarative : 서술체 (~함) ("초기 설정을 추가함")
+  # - imperative  : 영어 명령형 ("Add initial setup")
+  # - past        : 영어 과거형 ("Added initial setup")
+  style: "verb"
+  tone: "concise"       # "concise"(간결) | "detailed"(자세)
+  lines: "single"       # "single"(한 줄) | "multi"(본문 포함)
+  wrap: 72              # 제목 줄 길이 가이드(0=무제한, 자동 강제 줄바꿈은 하지 않음)
+  emoji:
+    enabled: false
+    # 태그별 이모지 매핑 (enabled=true일 때만 적용)
+    map:
+      feat: "✨"
+      fix: "🐛"
+      docs: "📝"
+      chore: "🔧"
+
+grouping:
+  # 커밋 단위 묶음 방식
+  # - per-file     : 파일별 커밋 1개씩
+  # - by-tag       : 태그별로 묶음
+  # - by-directory : 디렉터리 단위 묶음
+  # - none         : 자동 커밋 묶음 없음(텍스트 생성만)
+  mode: "per-file"
+  directoryDepth: 1     # by-directory일 때 기준 깊이 (1=최상위 폴더)
+  minFilesPerGroup: 2   # 그룹 생성 최소 파일 수
+
+diff:
+  includeBinary: false      # 바이너리 파일 본문 포함 여부(보통 false 권장)
+  untrackedSizeLimit: 512000 # 신규 파일 본문 최대 바이트(초과 시 잘라냄)
+  context: 3                # diff 문맥 줄 수(향후 적용용, 엔진이 지원할 때 사용)
+
+ignore:
+  files:                    # 커밋 메시지 생성을 제외할 경로 패턴(글롭)
+    - "package-lock.json"
+    - "*.lock"
+    - "dist/**"
+  # 특정 경로 패턴에 기본 태그를 강제 지정(선택)
+  tagsForPaths:
+    "docs/**": "docs"
+    "scripts/**": "chore"
+
+llm:
+  provider: "gemini"        # "gemini" | "openai" | "ollama" 등
+  model: "gemini-2.5-flash"
+  maxPromptTokens: 200000   # 프롬프트 토큰 상한(안전장치)
+  maxOutputTokens: 4000     # 출력 토큰 상한(안전장치)
+
+conventional:
+  compatible: false         # true 시 Conventional Commits 방식 준수
+  scope:
+    enabled: false          # scope 출력 사용 여부
+    inferFromPath: true     # 파일 경로에서 scope 추론 (예: src/helper → helper)
+    # when enabled=true and style uses {scope}, 결과 예:
+    #   style: "{tag}({scope}):" → "feat(helper): 메시지"
