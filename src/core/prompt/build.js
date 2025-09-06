@@ -1,0 +1,158 @@
+// src/core/prompt/build.js
+import { CHARS_PER_TOKEN } from "../constants.js";
+
+/* ──────────────────────────────
+ * Grouping descriptor
+ * ────────────────────────────── */
+function describeGrouping(cfg) {
+  const g = cfg.grouping ?? {};
+  const mode = g.mode ?? "per-file";
+  const minFiles = Number.isFinite(g.minFilesPerGroup) ? g.minFilesPerGroup : 2;
+  const depth = Number.isFinite(g.directoryDepth) ? g.directoryDepth : 1;
+
+  // tagsForPaths: { "docs/**": "docs", "scripts/**": "chore" }
+  const pathTagHints = cfg.ignore?.tagsForPaths ?? {};
+  const pathHintsList = Object.entries(pathTagHints).map(
+    ([pattern, tag]) => `- "${pattern}" => "${tag}"`
+  );
+
+  const lines = [
+    "Grouping policy:",
+    `- mode: ${mode}`,
+    `- minFilesPerGroup: ${minFiles}`,
+  ];
+
+  if (mode === "by-directory") {
+    lines.push(`- directoryDepth: ${depth} (group by first ${depth} path segments)`);
+    lines.push(`- Example: "src/utils/file.js", depth=1 -> "src"; depth=2 -> "src/utils"`);
+    lines.push(`- If a directory bucket has < minFilesPerGroup, fall back to per-file commits for those files.`);
+  } else if (mode === "by-tag") {
+    lines.push("- Infer tag per file; use explicit hints first, then infer from diffs if unclear.");
+    if (pathHintsList.length) {
+      lines.push("- Tag hints by path pattern:");
+      lines.push(...pathHintsList);
+    } else {
+      lines.push("- No explicit path hints provided.");
+    }
+    lines.push(`- Create one commit per tag bucket. If a bucket has < minFilesPerGroup, fall back to per-file commits for those files.`);
+  } else if (mode === "per-file") {
+    lines.push("- Create exactly one commit per file.");
+  } else if (mode === "none") {
+    lines.push("- Do not create grouped commits; produce messages only (still output the shell block using per-file commits).");
+  }
+
+  // Conventional/scope 보조 규칙
+  const convOn = !!cfg.conventional?.compatible;
+  const scopeOn = !!cfg.conventional?.scope?.enabled;
+  if (convOn || scopeOn) {
+    lines.push(
+      `- Conventional: ${convOn ? "ON" : "OFF"}; scope: ${scopeOn ? "ON" : "OFF"};`,
+      "- If scope is ON and inferFromPath is true, derive scope from directory (e.g., 'src/helper' -> 'helper')."
+    );
+  }
+
+  // shell 정렬 규칙
+  lines.push(
+    "- The order of groups in text MUST match the order of the shell commands.",
+    "- Within each group, list files in lexicographic order for reproducibility."
+  );
+
+  return lines.join("\n");
+}
+
+/* ──────────────────────────────
+ * Tag style descriptor
+ * ────────────────────────────── */
+function describeTagStyle(cfg) {
+  if (!cfg?.tags?.enabled) return "Tag prefix: DISABLED";
+  const tag = (cfg.tags.list?.[0] ?? "feat");
+  const rendered = typeof cfg.tags.render === "function"
+    ? cfg.tags.render(tag)
+    : `${tag}:`;
+  const sep = cfg.tags.separator ?? " ";
+  const allowed = (cfg.tags.list || []).join(", ");
+  return `Tag prefix: ENABLED; allowed=[${allowed}]; example="${rendered}${sep}"`;
+}
+
+/* ──────────────────────────────
+ * Token helpers
+ * ────────────────────────────── */
+function estimateTokens(str) {
+  return Math.ceil((str?.length || 0) / CHARS_PER_TOKEN);
+}
+
+function truncateByTokens(str, maxTokens) {
+  if (!str) return "";
+  const maxChars = Math.max(0, Math.floor(maxTokens * CHARS_PER_TOKEN));
+  if (str.length <= maxChars) return str;
+
+  const cut = str.slice(0, maxChars);
+
+  // 안전 앵커들: 구분선 / FILENAME 헤더 / 과거 호환 '----'
+  const anchors = [
+    "\n--------------------------------------------",
+    "\n[FILENAME]:",
+    "\n----",
+  ];
+  const lastPos = anchors
+    .map(a => cut.lastIndexOf(a))
+    .reduce((m, v) => (v > m ? v : m), -1);
+
+  const safe = lastPos > 0 ? cut.slice(0, lastPos) : cut;
+  return `${safe}\n\n/* truncated for token budget */`;
+}
+
+/* ──────────────────────────────
+ * Main
+ * ────────────────────────────── */
+export function buildPromptFromDiff(config, diffText) {
+  const budget = Math.floor(config.llm.maxPromptTokens * 0.85);
+  const headerReserve = 512;
+  const diffBudget = Math.max(256, budget - headerReserve);
+
+  const sys = [
+    "You are a precise commit message generator.",
+    `Language: ${config.message.lang}`,
+    `Tone: ${config.message.tone}`,
+    `Sentence style: ${config.message.style}`,
+    `Lines: ${config.message.lines}`,
+    `Subject guide width (hint): ~${config.message.wrap} chars`,
+    describeTagStyle(config),
+    `Conventional: ${config.conventional?.compatible ? "ON" : "OFF"}; scope: ${config.conventional?.scope?.enabled ? "ON" : "OFF"}`,
+    "",
+    // 그루핑 정책 주입
+    describeGrouping(config),
+    "",
+    "Rules:",
+    "- Do not invent changes; only use provided diffs.",
+    "- If lines=single, output only one subject line.",
+    "- If lines=multi, output subject then 2-4 concise bullets.",
+    "- Keep output in the specified language and style.",
+    "",
+    // Shell block 규칙 강화
+    "At the end, include a shell block with executable git commands to apply the commits.",
+    "The commands must be copy-paste ready and grouped logically by the messages you produce.",
+    "The order of groups in the shell block MUST match the message groups.",
+    "The shell block MUST include only 'git add …' and 'git commit -m …' lines.",
+    "Do NOT include any other commands, comments, or annotations in that block."
+  ].join("\n");
+
+  const userHeader = [
+    "# INPUT: Git-style changes (per file blocks)",
+    "- Blocks start with '----' and include [FILENAME], [DIFFERENCES].",
+    "- Some contents may be truncated for length.",
+    "",
+    "# TASK:",
+    "- Generate commit message(s) that follow the rules above.",
+    "- Prefer grouping logically as implied by the diffs and the grouping policy.",
+    "- Use allowed tags; if tags are disabled, omit them.",
+    "- Do not include code blocks unless needed for the shell commands.",
+    "",
+  ].join("\n");
+
+  const trimmedDiff = truncateByTokens(diffText, diffBudget);
+  const user = `${userHeader}\n${trimmedDiff}`;
+  const approxTokens = estimateTokens(sys) + estimateTokens(user);
+
+  return { system: sys, user, approxTokens };
+}
