@@ -10,7 +10,6 @@ function describeGrouping(cfg) {
   const minFiles = Number.isFinite(g.minFilesPerGroup) ? g.minFilesPerGroup : 2;
   const depth = Number.isFinite(g.directoryDepth) ? g.directoryDepth : 1;
 
-  // tagsForPaths: { "docs/**": "docs", "scripts/**": "chore" }
   const pathTagHints = cfg.ignore?.tagsForPaths ?? {};
   const pathHintsList = Object.entries(pathTagHints).map(
     ([pattern, tag]) => `- "${pattern}" => "${tag}"`
@@ -19,39 +18,32 @@ function describeGrouping(cfg) {
   const lines = [
     "Grouping policy:",
     `- mode: ${mode}`,
-    `- minFilesPerGroup: ${minFiles}`,
   ];
 
   if (mode === "by-directory") {
-    lines.push(`- directoryDepth: ${depth} (group by first ${depth} path segments)`);
-    lines.push(`- Example: "src/utils/file.js", depth=1 -> "src"; depth=2 -> "src/utils"`);
-    lines.push(`- If a directory bucket has < minFilesPerGroup, fall back to per-file commits for those files.`);
+    lines.push(
+      `- directoryDepth: ${depth} (group by first ${depth} path segments)`,
+      `- If a directory bucket has < minFilesPerGroup (${minFiles}), fall back to per-file commits.`
+    );
   } else if (mode === "by-tag") {
-    lines.push("- Infer tag per file; use explicit hints first, then infer from diffs if unclear.");
-    if (pathHintsList.length) {
-      lines.push("- Tag hints by path pattern:");
-      lines.push(...pathHintsList);
-    } else {
-      lines.push("- No explicit path hints provided.");
-    }
-    lines.push(`- Create one commit per tag bucket. If a bucket has < minFilesPerGroup, fall back to per-file commits for those files.`);
+    lines.push(
+      "- Infer tag per file; use explicit hints first, then infer from diffs if unclear.",
+      pathHintsList.length ? "- Tag hints by path pattern:" : "- No explicit path hints provided.",
+      ...pathHintsList,
+      `- One commit per tag bucket; if a bucket has < minFilesPerGroup (${minFiles}), fall back to per-file.`
+    );
+  } else if (mode === "by-similarity") {
+    lines.push(
+      `- Cluster files by semantic/path similarity (threshold=${g.threshold}, maxGroupSize=${g.maxGroupSize}).`,
+      "- Similarity considers file paths, filenames, and diff text tokens.",
+      "- Keep groups compact; if borderline, prefer splitting to avoid mixed intent."
+    );
   } else if (mode === "per-file") {
     lines.push("- Create exactly one commit per file.");
   } else if (mode === "none") {
-    lines.push("- Do not create grouped commits; produce messages only (still output the shell block using per-file commits).");
+    lines.push("- Do not create grouped commits; produce messages only (shell block still per-file).");
   }
 
-  // Conventional/scope 보조 규칙
-  const convOn = !!cfg.conventional?.compatible;
-  const scopeOn = !!cfg.conventional?.scope?.enabled;
-  if (convOn || scopeOn) {
-    lines.push(
-      `- Conventional: ${convOn ? "ON" : "OFF"}; scope: ${scopeOn ? "ON" : "OFF"};`,
-      "- If scope is ON and inferFromPath is true, derive scope from directory (e.g., 'src/helper' -> 'helper')."
-    );
-  }
-
-  // shell 정렬 규칙
   lines.push(
     "- The order of groups in text MUST match the order of the shell commands.",
     "- Within each group, list files in lexicographic order for reproducibility."
@@ -87,7 +79,6 @@ function truncateByTokens(str, maxTokens) {
   if (str.length <= maxChars) return str;
 
   const cut = str.slice(0, maxChars);
-
   // 안전 앵커들: 구분선 / FILENAME 헤더 / 과거 호환 '----'
   const anchors = [
     "\n--------------------------------------------",
@@ -120,7 +111,6 @@ export function buildPromptFromDiff(config, diffText) {
     describeTagStyle(config),
     `Conventional: ${config.conventional?.compatible ? "ON" : "OFF"}; scope: ${config.conventional?.scope?.enabled ? "ON" : "OFF"}`,
     "",
-    // 그루핑 정책 주입
     describeGrouping(config),
     "",
     "Rules:",
@@ -129,7 +119,6 @@ export function buildPromptFromDiff(config, diffText) {
     "- If lines=multi, output subject then 2-4 concise bullets.",
     "- Keep output in the specified language and style.",
     "",
-    // Shell block 규칙 강화
     "At the end, include a shell block with executable git commands to apply the commits.",
     "The commands must be copy-paste ready and grouped logically by the messages you produce.",
     "The order of groups in the shell block MUST match the message groups.",
