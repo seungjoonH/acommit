@@ -88,8 +88,7 @@ ignore:
     "scripts/**": "chore"
 
 llm:
-  provider: "gemini"         # "gemini" | "openai" | "ollama" | …
-  model: "gemini-2.5-flash"
+  provider: "gemini"         # "gemini" or "openai"
   maxPromptTokens: 200000    # Safety cap for prompt tokens
   maxOutputTokens: 4000      # Safety cap for output tokens
 
