@@ -96,7 +96,7 @@ function truncateByTokens(str, maxTokens) {
 /* ──────────────────────────────
  * Main
  * ────────────────────────────── */
-export function buildPromptFromDiff(config, diffText) {
+export function buildPromptFromDiff(config, diffText, extraPrompts = []) {
   const budget = Math.floor(config.llm.maxPromptTokens * 0.85);
   const headerReserve = 512;
   const diffBudget = Math.max(256, budget - headerReserve);
@@ -138,9 +138,14 @@ export function buildPromptFromDiff(config, diffText) {
     "- Do not include code blocks unless needed for the shell commands.",
     "",
   ].join("\n");
-
   const trimmedDiff = truncateByTokens(diffText, diffBudget);
-  const user = `${userHeader}\n${trimmedDiff}`;
+
+  // extraPrompts: array of { source: 'persistent'|'one-time', text: '...' }
+  const promptsSection = (Array.isArray(extraPrompts) && extraPrompts.length)
+    ? ["# ADDITIONAL PROMPTS (user-provided):", ...extraPrompts.map(p => `- ${p.text}`), ""]
+    : [];
+
+  const user = `${userHeader}\n${promptsSection.join('\n')}\n${trimmedDiff}`;
   const approxTokens = estimateTokens(sys) + estimateTokens(user);
 
   return { system: sys, user, approxTokens };

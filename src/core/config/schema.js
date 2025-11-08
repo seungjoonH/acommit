@@ -1,4 +1,3 @@
-// src/core/config/schema.js
 export const DEFAULTS = {
   llm: {
     provider: "gemini",
@@ -6,6 +5,7 @@ export const DEFAULTS = {
     maxPromptTokens: 200_000,
     maxOutputTokens: 4_000,
   },
+  prompts: [],
 
   message: {
     // 내부 표준 키는 lang. YAML에서는 language를 받아 매핑함.
@@ -59,6 +59,7 @@ function mergeDefaults(user = {}) {
   return {
     llm:          { ...DEFAULTS.llm,          ...(user.llm || {}) },
     message:      { ...DEFAULTS.message,      ...(user.message || {}) },
+    prompts:      user.prompts || DEFAULTS.prompts,
     tags:         { ...DEFAULTS.tags,         ...(user.tags || {}) },
     grouping:     { ...DEFAULTS.grouping,     ...(user.grouping || {}) },
     diff:         { ...DEFAULTS.diff,         ...(user.diff || {}) },
@@ -112,9 +113,18 @@ export function normalize(user = {}) {
   if (g.threshold > 1) g.threshold = 1;
   if (!Number.isFinite(g.maxGroupSize) || g.maxGroupSize < 1) g.maxGroupSize = DEFAULTS.grouping.maxGroupSize;
 
-  // ── diff 크기 보호
   if (!Number.isFinite(out.diff.untrackedSizeLimit) || out.diff.untrackedSizeLimit < 0) {
     out.diff.untrackedSizeLimit = DEFAULTS.diff.untrackedSizeLimit;
+  }
+
+  const hasUserModel = Boolean(user?.llm && Object.prototype.hasOwnProperty.call(user.llm, "model"));
+  if (!hasUserModel) {
+    const provider = (out.llm?.provider || "").toLowerCase();
+    if (provider === "openai") {
+      out.llm.model = process.env.OPENAI_MODEL || null;
+    } else if (provider === "gemini") {
+      out.llm.model = process.env.GEMINI_MODEL || DEFAULTS.llm.model;
+    }
   }
 
   return out;
