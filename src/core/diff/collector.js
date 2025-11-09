@@ -140,7 +140,7 @@ export class DiffCollector {
     }
   }
 
-  // 진행바용 공개 메서드
+  // Progress helper method
   async listFiles() {
     if (!(await this.#ensureRepo())) return [];
     return this.#listDiffFiles();

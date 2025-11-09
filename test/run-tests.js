@@ -9,21 +9,21 @@ const CASES = [
 async function verifyClient({ provider, opts = {} }) {
   const client = await createLLMClient(provider, opts);
   if (!client) {
-    console.warn(`[경고] ${provider} 모듈을 불러오지 못해 해당 계약 테스트를 건너뜁니다.`);
+    console.warn(`[warn] Skipping ${provider} contract test because the module could not be loaded.`);
     return;
   }
 
-  assert.strictEqual(typeof client.gen, 'function', `${provider} 클라이언트는 gen()을 제공해야 합니다.`);
+  assert.strictEqual(typeof client.gen, 'function', `${provider} client must expose gen()`);
   const output = await client.gen('contract-test');
-  assert(Object.prototype.hasOwnProperty.call(output, 'text'), `${provider}.gen 은 text 필드를 반환해야 합니다.`);
-  assert(Object.prototype.hasOwnProperty.call(output, 'raw'), `${provider}.gen 은 raw 필드를 반환해야 합니다.`);
-  assert.strictEqual(typeof output.text, 'string', `${provider}.text 는 문자열이어야 합니다.`);
+  assert(Object.prototype.hasOwnProperty.call(output, 'text'), `${provider}.gen must return text.`);
+  assert(Object.prototype.hasOwnProperty.call(output, 'raw'), `${provider}.gen must return raw.`);
+  assert.strictEqual(typeof output.text, 'string', `${provider}.text must be a string.`);
 }
 
 async function run() {
-  console.log('acommit LLM 계약 테스트를 실행합니다...');
+  console.log('Running acommit LLM contract tests...');
 
-  // 실제 키를 제거해 네트워크 호출을 방지한다.
+  // Remove real keys so requests never leave the machine.
   delete process.env.GEMINI_API_KEY;
   delete process.env.OPENAI_API_KEY;
 
@@ -31,10 +31,10 @@ async function run() {
     await verifyClient(item);
   }
 
-  console.log('모든 LLM 계약 테스트가 통과했습니다.');
+  console.log('All LLM contract tests passed.');
 }
 
 run().catch((err) => {
-  console.error('테스트 실패:', err);
+  console.error('Tests failed:', err);
   process.exit(1);
 });

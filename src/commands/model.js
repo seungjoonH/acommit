@@ -38,7 +38,7 @@ function renderList(index, current, linesPrintedRef) {
   }
   const lines = PROVIDERS.map((p, idx) => {
     const cursor = idx === index ? '*' : ' ';
-    const suffix = current && current === p.value ? ' (현재)' : '';
+    const suffix = current && current === p.value ? ' (current)' : '';
     return `${cursor} ${p.value}${suffix}`;
   });
   process.stdout.write(lines.join('\n') + '\n');
@@ -47,7 +47,7 @@ function renderList(index, current, linesPrintedRef) {
 
 async function interactiveSelect(current) {
   if (!process.stdin.isTTY) {
-    logger.error('상호작용 선택은 TTY 환경에서만 가능합니다. 터미널에서 다시 실행하거나 --provider <name> 옵션을 사용하세요.');
+    logger.error('Interactive selection requires a TTY. Re-run in a terminal or use --provider <name>.');
     return null;
   }
 
@@ -55,7 +55,7 @@ async function interactiveSelect(current) {
   if (process.stdin.isTTY) process.stdin.setRawMode(true);
   process.stdin.resume();
 
-  console.log('↑/↓ 로 제공자를 고르고 Enter 로 확정합니다. 취소는 Ctrl+C 입니다.\n');
+  console.log('Use ↑/↓ to choose a provider, Enter to confirm, Ctrl+C to cancel.\n');
 
   let index = Math.max(0, PROVIDERS.findIndex((p) => p.value === current));
   if (index === -1) index = 0;
@@ -102,7 +102,7 @@ function validateProvider(value) {
   if (!normalized) return null;
   const exists = PROVIDERS.some((p) => p.value === normalized);
   if (!exists) {
-    logger.error(`알 수 없는 제공자 '${value}' 입니다. 지원 목록: ${PROVIDERS.map((p) => p.value).join(', ')}`);
+    logger.error(`Unknown provider '${value}'. Supported: ${PROVIDERS.map((p) => p.value).join(', ')}`);
     return null;
   }
   return normalized;
@@ -119,7 +119,7 @@ export async function modelCommand(opts = {}) {
   } else {
     provider = await interactiveSelect(current);
     if (!provider) {
-      logger.warn('선택이 취소되어 변경 사항이 없습니다.');
+      logger.warn('Selection cancelled. No changes applied.');
       return;
     }
   }
@@ -129,10 +129,10 @@ export async function modelCommand(opts = {}) {
   await saveRules(next);
 
   const hint = provider === 'openai'
-    ? 'OPENAI_API_KEY 와 (선택적으로) OPENAI_MODEL 환경 변수를 설정하세요.'
-    : 'GEMINI_API_KEY 와 (선택적으로) GEMINI_MODEL 환경 변수를 설정하세요.';
+    ? 'Set OPENAI_API_KEY and optionally OPENAI_MODEL.'
+    : 'Set GEMINI_API_KEY and optionally GEMINI_MODEL.';
 
-  logger.info(`LLM 제공자를 '${provider}' 로 설정했습니다. ${hint}`);
+  logger.info(`LLM provider set to '${provider}'. ${hint}`);
 }
 
 export default modelCommand;

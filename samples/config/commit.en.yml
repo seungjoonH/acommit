@@ -5,8 +5,6 @@
 # - Use comments generously to communicate intent.
 # -----------------------------------------------------------------------------
 
-version: 1  # Schema version for future compatibility checks
-
 tags:
   enabled: true          # Whether to use tags (true/false)
   list:                  # Allowed tags (agree within the team)
@@ -36,10 +34,10 @@ tags:
 message:
   language: "ko"        # "ko" | "en"
   # style: sentence style
-  # - verb        : terse noun/verb style (“Add init config”, “Update settings”)
-  # - declarative : Korean “~함” style (“초기 설정을 추가함”)
-  # - imperative  : English imperative (“Add initial setup”)
-  # - past        : English past (“Added initial setup”)
+  # - verb        : terse noun/verb style ("Add init config", "Update settings")
+  # - declarative : Korean "~함" style ("초기 설정을 추가함")
+  # - imperative  : English imperative ("Add initial setup")
+  # - past        : English past ("Added initial setup")
   style: "verb"
   tone: "concise"       # "concise" | "detailed"
   lines: "single"       # "single" (subject only) | "multi" (subject + body)
@@ -75,7 +73,6 @@ grouping:
 diff:
   includeBinary: false       # Include binary file contents (usually false)
   untrackedSizeLimit: 512000 # Max bytes for new file contents (truncate beyond)
-  context: 3                 # Diff context lines (for future engines that support it)
 
 ignore:
   files:                     # Glob patterns to skip when generating messages
