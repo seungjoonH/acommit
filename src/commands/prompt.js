@@ -74,7 +74,7 @@ export async function cmdPrompt(opts = {}) {
 
   const payload = { text: text.trim(), createdAt: new Date().toISOString() };
   await fs.writeFile(ONE_TIME_PATH, JSON.stringify(payload, null, 2), 'utf8');
-  logger.info('Stored one-time prompt; it will be used by the next `acommit run`.');
+  logger.info('Stored one-time prompt; it will be used by the next `acommit commit`.');
 }
 
 export default cmdPrompt;

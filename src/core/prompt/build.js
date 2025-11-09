@@ -79,7 +79,7 @@ function truncateByTokens(str, maxTokens) {
   if (str.length <= maxChars) return str;
 
   const cut = str.slice(0, maxChars);
-  // 안전 앵커들: 구분선 / FILENAME 헤더 / 과거 호환 '----'
+  // Safe anchors: separators, FILENAME headers, legacy '----'
   const anchors = [
     "\n--------------------------------------------",
     "\n[FILENAME]:",
@@ -96,18 +96,45 @@ function truncateByTokens(str, maxTokens) {
 /* ──────────────────────────────
  * Main
  * ────────────────────────────── */
-export function buildPromptFromDiff(config, diffText, extraPrompts = []) {
-  const budget = Math.floor(config.llm.maxPromptTokens * 0.85);
-  const headerReserve = 512;
-  const diffBudget = Math.max(256, budget - headerReserve);
-
-  const sys = [
-    "You are a precise commit message generator.",
+function buildSystemPrompt(config, purpose) {
+  const base = [
     `Language: ${config.message.lang}`,
     `Tone: ${config.message.tone}`,
     `Sentence style: ${config.message.style}`,
     `Lines: ${config.message.lines}`,
     `Subject guide width (hint): ~${config.message.wrap} chars`,
+  ];
+
+  if (purpose === "issue") {
+    return [
+      "You are a seasoned software PM drafting high-quality GitHub issues.",
+      ...base,
+      "Goals:",
+      "- Summarize the root cause and impact using only the provided diff context.",
+      "- Capture reproduction steps, expected vs. actual behavior, and acceptance criteria when applicable.",
+      "- Mirror the structure of the supplied issue template exactly; replace all placeholder text with concrete content.",
+      "- Maintain the phrasing style of the example sentences in the template (e.g., “~ 구현 해야 한다”, “~ 구현 한다”, “~ 구현”) exactly as shown.",
+      "- Keep the tone professional and easy to skim.",
+    ].join("\n");
+  }
+
+  if (purpose === "pr") {
+    return [
+      "You are an experienced engineer preparing a pull request description.",
+      ...base,
+      "Goals:",
+      "- Summarize what changed and why, referencing the diff content only.",
+      "- Call out testing performed, risks, and review needs.",
+      "- Mirror the structure of the supplied PR template exactly; replace all placeholder text with concrete content.",
+      "- Maintain the phrasing style of the example sentences in the template (e.g., “~ 구현하였다”, “~ 구현함”, “~ 구현”) exactly as shown.",
+      "- Keep the tone professional and easy to skim.",
+    ].join("\n");
+  }
+
+  // commit (default)
+  return [
+    "You are a precise commit message generator.",
+    ...base,
     describeTagStyle(config),
     `Conventional: ${config.conventional?.compatible ? "ON" : "OFF"}; scope: ${config.conventional?.scope?.enabled ? "ON" : "OFF"}`,
     "",
@@ -125,12 +152,47 @@ export function buildPromptFromDiff(config, diffText, extraPrompts = []) {
     "The shell block MUST include only 'git add …' and 'git commit -m …' lines.",
     "Do NOT include any other commands, comments, or annotations in that block."
   ].join("\n");
+}
 
-  const userHeader = [
+function buildUserHeader(purpose, { linkedIssueId } = {}) {
+  const intro = [
     "# INPUT: Git-style changes (per file blocks)",
     "- Blocks start with '----' and include [FILENAME], [DIFFERENCES].",
     "- Some contents may be truncated for length.",
     "",
+  ];
+
+  if (purpose === "issue") {
+    return [
+      ...intro,
+      "# TASK:",
+      "- Draft a GitHub issue body using the supplied template.",
+      "- Highlight motivation, scope, reproduction steps (if relevant), and acceptance criteria grounded in the diff.",
+      "- Prefer bullet lists for steps/criteria; keep paragraphs short.",
+      "- Do NOT mention git commands or commit summaries.",
+      "",
+    ].join("\n");
+  }
+
+  if (purpose === "pr") {
+    const linkedLine = linkedIssueId
+      ? `- Inside the Linked Issues section, include a bullet like 'resolves #${linkedIssueId}'.`
+      : null;
+    return [
+      ...intro,
+      "# TASK:",
+      "- Draft a PR description using the supplied template.",
+      "- Summarize major code paths touched, tests performed, risks, and review requests.",
+      "- Ground every statement in the provided diff; do not speculate.",
+      linkedLine ? linkedLine : "- If the template has a Linked Issues section, ensure it references the correct issue IDs.",
+      "- Do NOT include git commands or commit templates.",
+      "",
+    ].join("\n");
+  }
+
+  // commit default
+  return [
+    ...intro,
     "# TASK:",
     "- Generate commit message(s) that follow the rules above.",
     "- Prefer grouping logically as implied by the diffs and the grouping policy.",
@@ -138,6 +200,20 @@ export function buildPromptFromDiff(config, diffText, extraPrompts = []) {
     "- Do not include code blocks unless needed for the shell commands.",
     "",
   ].join("\n");
+}
+
+export function buildPromptFromDiff(config, diffText, extraPrompts = [], options = {}) {
+  const {
+    purpose = "commit",
+    template = "",
+    linkedIssueId = null,
+  } = options;
+  const budget = Math.floor(config.llm.maxPromptTokens * 0.85);
+  const headerReserve = 512;
+  const diffBudget = Math.max(256, budget - headerReserve);
+
+  const sys = buildSystemPrompt(config, purpose);
+  const userHeader = buildUserHeader(purpose, { linkedIssueId });
   const trimmedDiff = truncateByTokens(diffText, diffBudget);
 
   // extraPrompts: array of { source: 'persistent'|'one-time', text: '...' }
@@ -145,7 +221,18 @@ export function buildPromptFromDiff(config, diffText, extraPrompts = []) {
     ? ["# ADDITIONAL PROMPTS (user-provided):", ...extraPrompts.map(p => `- ${p.text}`), ""]
     : [];
 
-  const user = `${userHeader}\n${promptsSection.join('\n')}\n${trimmedDiff}`;
+  const templateSection = template
+    ? ["# TEMPLATE TO FILL:", template.trim(), ""]
+    : [];
+
+  const sections = [
+    userHeader,
+    promptsSection.join('\n'),
+    templateSection.join('\n'),
+    trimmedDiff,
+  ].filter(Boolean);
+
+  const user = sections.join("\n");
   const approxTokens = estimateTokens(sys) + estimateTokens(user);
 
   return { system: sys, user, approxTokens };
