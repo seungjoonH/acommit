@@ -1,248 +1,299 @@
-# acommit — AI 기반 커밋 메시지 자동화 CLI
+# acommit — AI 기반 커밋 자동화 CLI
 
-Git 변경 내역을 분석해 LLM(Gemini, OpenAI 등)으로부터 일관된 커밋 메시지를 생성하는 도구입니다.  
-프로젝트별 규칙을 `.acommit/rules.yml`로 관리하고, 결과를 `.acommit/results/`에 기록해 팀의 커밋 품질을 높여줍니다.
+Git diff 분석 결과를 바탕으로 commit 메시지, Issue 및 PR 문서를 **일관된 형태** 로 생성하는 협업 도구 입니다.
 
----
+## 1. 설치 방법
 
-## 1. 빠른 시작
+### 1) 설치
 
-### 1) 설치 (clone → npm link)
 ```bash
 git clone https://github.com/seungjoonH/acommit.git
 cd acommit
 npm install
-npm link            # 전역 acommit 명령어 등록
+npm link            # acommit을 전역에 등록
 ```
 
-### 2) 환경 변수 준비
-루트에 `.env` 파일을 만들고 다음과 같이 채웁니다.
+### 2) 환경 변수 설정
+
+프로젝트 루트에 `.env` 파일을 생성합니다.
 
 #### GEMINI 사용 시
 
 ```
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=your_gemini_model
 GEMINI_API_KEY=your_gemini_api_key
 ```
 
 #### OPENAI 사용 시
 
 ```
-OPENAI_MODEL=gpt-4o
+OPENAI_MODEL=your_openai_model
 OPENAI_API_KEY=your_openai_api_key
 ```
-> `.env` 는 반드시 `.gitignore` 에 포함시키세요.  
-> `set -o allexport; source .env; set +o allexport` 로 로컬 셸에 로드할 수 있습니다.
 
-### 3) 설정 파일 생성
+> [!WARNING]
+> 
+> `API_KEY` 노출을 방지하기 위해 꼭 `.env` 를 `.gitignore` 에 추가하세요!
+
+### 3) 규칙 파일 생성
+
 ```bash
-acommit init          # .acommit/rules.yml 템플릿 생성
+acommit init          # 템플릿으로부터 .acommit/rules.yml 생성
 ```
 
 ### 4) 실행
-```bash
-acommit run
-```
-터미널에 메시지가 출력되고 `.acommit/results/<timestamp>.md` 에 기록됩니다.
 
----
+```bash
+acommit commit
+```
+
+결과는 `.acommit/results/commits/` 에 저장됩니다.
+
 
 ## 2. 사용 가능한 명령어
 
-| 명령 | 설명 | 예시 |
+| 명령어 | 설명 | 예시 |
 | --- | --- | --- |
-| `acommit run` | Git 변경분을 분석하고 커밋 메시지를 생성합니다. | `acommit run` |
-| `acommit prompt [--save]` | 보조 프롬프트를 입력하거나 저장합니다. | `acommit prompt -m "리팩터링임을 강조해줘"` |
-| `acommit model` | 사용할 LLM 제공자를 선택/변경합니다. | `acommit model -p gemini` |
-| `acommit init` | `.acommit/rules.yml` 템플릿과 `.gitignore` 를 생성합니다. | `acommit init --lang ko` |
-| `acommit --help` | 전체 도움말과 전역 옵션을 확인합니다. | `acommit --help` |
+| `acommit commit` | 현재 변경사항 (git diff) 를 토대로 commit 요약 초안을 작성합니다. | `acommit commit` |
+| `acommit pr [<number>]` | 번호가 있으면 해당 PR diff, 없으면 현재 변경사항으로 PR 초안을 작성합니다. | `acommit pr 36` |
+| `acommit issue <number>` | 연결된 PR에 대한 이슈 요약 및 PR 설명을 초안 작성합니다. | `acommit issue 1` |
+| `acommit prompt [--save]` | 보조 프롬프트(일회성 또는 영구적)를 추가합니다. | `acommit prompt -m "Highlight refactoring"` |
+| `acommit model` | 사용할 LLM 백엔드를 선택합니다. | `acommit model -p gemini` |
+| `acommit init` | `.acommit/rules.yml`을 생성하고 `.gitignore`를 업데이트합니다. | `acommit init --lang en` |
+| `acommit --help` | 전역 옵션과 함께 CLI 도움말을 표시합니다. | `acommit --help` |
 
-### acommit run
-- **용도**: 현재 Git 작업 트리의 변경 파일을 스캔하고 diff 기반 프롬프트를 생성해 LLM으로부터 커밋 메시지를 받습니다.
-- **기본 사용법**: `acommit run`
-- **입력**: 필요 시 `.acommit/last_prompt.json` (일회성 프롬프트), `.acommit/rules.yml`, 환경 변수.
-- **출력**:
-  - 진행률/스피너 로그
-  - LLM 응답으로 구성된 메시지와 bullet 들
-  - `git add`/`git commit` 명령 예시
-  - 결과 파일 경로(`.acommit/results/<timestamp>.md`)
-- **예시 출력**:
-  ```
-  [acommit] Processing 5 changed files...
-  [acommit] Requesting LLM... done.
+### `acommit commit`
 
-  feat: add CLI progress bar
-
-  - add ProgressUI to visualize diff processing
-  - wire run command to show spinner + counts
-
-  git add src/ui/progress.js src/commands/run.js
-  git commit -m "feat: add CLI progress bar"
-
-  [acommit] Result saved at: .acommit/results/2025-11-08_17-59-16.md
-  ```
-
-### acommit prompt
-- **용도**: LLM에게 전달할 추가 지시문을 입력합니다.
-- **옵션**:
-  - `-m, --message <msg>`: 에디터 없이 바로 문자열 입력.
-  - `--save`: `.acommit/rules.yml` 의 `prompts` 배열에 영구 저장.
-- **동작**:
-  1. 기본값은 시스템 에디터(EDITOR, 없으면 `vi`)를 실행해 다중 줄 작성.
-  2. `--save` 없으면 `.acommit/last_prompt.json` 에 저장되어 다음 `run` 한 번만 사용.
-  3. `--save` 지정 시 규칙 파일에 추가되고 반복 사용.
-- **입출력 예시**:
-  ```
-  $ acommit prompt -m "메인 페이지 구현에 관련된 커밋만 유지하고 나머지 커밋은 포함하지 말아줘"
-  [info] Stored one-time prompt; it will be used by the next `acommit run`.
-  ```
-  ```
-  $ acommit prompt --save
-  # (에디터에서 작성 후 종료)
-  [info] Saved prompt to .acommit/rules.yml under `prompts`.
-  ```
-
-### acommit model
-- **용도**: LLM 제공자(Gemini/OpenAI)를 전환.
-- **옵션**:
-  - 기본: TTY 상에서 ↑↓ 로 이동, Enter 로 확정.
-  - `-p, --provider <name>`: 비대화식 지정 (`gemini` 또는 `openai`).
-- **동작**:
-  1. 현재 `.acommit/rules.yml` 의 `llm.provider` 값을 읽음.
-  2. 선택된 값을 덮어쓰고 저장.
-  3. 필요한 환경 변수 안내 로그 출력.
-- **예시**:
-  ```
-  $ acommit model
-  Use ↑/↓ to choose a provider, Enter to confirm. Press Ctrl+C to cancel.
-  * gemini (현재)
-    openai
-  ```
-  ```
-  $ acommit model -p openai
-  [info] LLM 제공자를 'openai' 로 설정했습니다. OPENAI_API_KEY 와 (선택적으로) OPENAI_MODEL 환경 변수를 설정하세요.
-  ```
-
-### acommit init
-- **용도**: 프로젝트에 필요한 설정 파일을 초기화.
-- **옵션**:
-  - `--lang <code>`: `ko` 또는 `en` 템플릿 선택 (기본 `ko`).
-  - `-C, --cwd <path>`: 다른 디렉터리를 대상으로 실행.
-- **동작**:
-  1. `.acommit/rules.yml` 가 없으면 템플릿을 복사.
-  2. `.gitignore` 에 `.acommit/` 와 `.env` 등을 추가(중복은 무시).
-- **예시**:
-  ```
-  $ acommit init --lang en
-  [info] Created .acommit/rules.yml (en template)
-  [info] Updated .gitignore with .acommit/ entries
-  ```
-
-### acommit --help
-- **용도**: 모든 명령과 옵션 요약 확인.
-- **출력 예시**:
-  ```
-  Usage: acommit [options] [command]
-
-  AI 기반 맞춤 커밋 메시지 생성기
-
-  Options:
-    -V, --verbose        자세한 로그를 출력합니다.
-    -v, --version        버전 정보를 출력합니다.
-    -h, --help           output usage information
-
-  Commands:
-    run [options]        변경분을 수집하고 커밋 메시지를 생성합니다.
-    prompt [options]     일회성 혹은 지속 프롬프트를 추가합니다.
-    model [options]      acommit 에서 사용할 LLM 제공자를 선택합니다.
-    init [options]       .acommit/rules.yml 템플릿을 생성하고 .gitignore 를 갱신합니다.
-    help [command]       display help for command
-  ```
-
-### 실행 예시
-```
-[acommit] Processing 5 changed files...
-[acommit] Requesting LLM... done.
-
-feat: add CLI progress bar
-
-- add ProgressUI to visualize diff processing
-- wire run command to show spinner + counts
-
-[acommit] Result saved at: .acommit/results/2025-11-08_17-59-16.md
+```sh
+acommit commit
 ```
 
----
+현재 변경사항 (`git diff`)을 분석하여 **커밋 요약 초안**을 작성합니다.
 
-## 3. 설정 파일 `.acommit/rules.yml`
 
-### 기본 예시
-```yaml
-version: 1
+### `acommit pr`
 
-tags:
-  enabled: true
-  list: [feat, fix, docs, chore, refactor, test, perf, build, ci]
-  separator: " "
-  style: "{tag}:"
-
-message:
-  language: ko
-  style: verb          # verb | declarative | imperative | past
-  tone: concise        # concise | detailed
-  lines: single        # single | multi
-  wrap: 72
-
-grouping:
-  mode: by-directory   # per-file | by-tag | by-directory | by-similarity | none
-  directoryDepth: 1
-  threshold: 0.6
-  maxGroupSize: 10
-
-diff:
-  includeBinary: false
-  untrackedSizeLimit: 512000
-  context: 3
-
-ignore:
-  files:
-    - package-lock.json
-    - "*.lock"
-    - dist/**
-  tagsForPaths:
-    docs/**: docs
-    scripts/**: chore
-
-llm:
-  provider: openai     # gemini | openai
-  model: gpt-4o        # 미지정 시 환경 변수 참고
-  maxPromptTokens: 200000
-  maxOutputTokens: 4000
-
-conventional:
-  compatible: false
-  scope:
-    enabled: false
-    inferFromPath: true
+```sh
+acommit pr             # 현재 변경사항 기반 PR 초안 작성
+acommit pr <number>    # GitHub PR diff 기반 PR 초안 작성
 ```
 
-### 주요 항목 정리
-- **tags**: 커밋 태그 목록과 출력 형식을 제어합니다. `style` 은 템플릿, `separator` 는 태그와 메시지 사이 구분자입니다.
-- **message**: 언어(`language`/`lang`), 어조, 길이 등을 정의합니다.
-- **grouping**: diff를 어떻게 묶어 요약할지 결정합니다. `by-similarity` 는 파일 내용 기반 유사도, `by-directory` 는 폴더 단위입니다.
-- **diff**: DiffCollector 가 읽는 범위를 제한해 대형 파일로 인한 토큰 초과를 방지합니다.
-- **ignore**: 특정 파일/경로를 무시하거나 자동 태그를 지정할 수 있습니다.
-- **llm**: `provider` 와 `model` 을 지정합니다. `model` 을 생략하면 `.env` 의 `GEMINI_MODEL` 또는 `OPENAI_MODEL` 을 사용합니다.
-- **conventional**: Conventional Commits 호환 옵션입니다. scope 자동 추론 기능을 포함합니다.
+로컬 변경사항 또는 지정된 **GitHub PR의 diff**를 분석하여 **PR 설명 초안**을 작성합니다.
 
-템플릿을 변경한 뒤에는 Git에 커밋해두면 팀원이 동일한 규칙을 공유할 수 있습니다.
+#### 옵션
 
----
+| 옵션 | 설명 | 유형 |
+| :--- | :--- | :--- |
+| `<number>` | 초안을 작성할 **GitHub PR 번호**를 지정합니다. | optional |
 
-## 4. 환경 변수 및 API 키 가이드
+#### 결과
+
+  * **번호 미지정**: 현재 변경사항을 기반으로 PR 문서 초안을 생성하며, 결과는 `.acommit/results/prs/new/<timestamp>.md`에 저장됩니다.
+  * **번호 지정**: 해당 PR 의 변경사항을 기반으로 PR 문서 초안을 생성하며, 결과는 `.acommit/results/prs/<number>/`에 저장됩니다.
+
+
+### `acommit issue`
+
+```sh
+acommit issue <number>
+```
+
+지정된 **이슈 번호**를 해결한 PR을 조회하고, 저장소의 템플릿을 따르는 **이슈 요약**과 첫 번째 연결된 PR에 대한 **PR 초안**을 (`resolves #<issue>` 참조 포함) 생성합니다.
+
+#### 옵션
+
+| 옵션 | 설명 | 유형 |
+| :--- | :--- | :--- |
+| `<number>` | **이슈 번호** | required |
+
+#### 결과
+
+  * 해당 이슈와 연결된 PR 의 변경사항을 기반으로 이슈 문서 초안을 생성하며, 결과는 `.acommit/results/issues/<number>/<timestamp>.md`에 저장됩니다.
+  * 해당 이슈와 연결된 PR 의 변경사항을 기반으로 PR 문서 초안을 생성하며, 결과는 `.acommit/results/prs/<number>/<timestamp>.md`에 저장됩니다.
+
+
+### `acommit prompt`
+
+```sh
+acommit prompt [options]
+```
+
+LLM에 **추가 지침**을 제공하여 생성 결과에 반영합니다. 지침은 **일회성**으로 사용하거나 **영구적**으로 저장할 수 있습니다.
+
+#### 옵션
+
+| 옵션 | 설명 | 유형 |
+| :--- | :--- | :--- |
+| `-m, --message <msg>` | 인라인 텍스트로 **프롬프트 메시지**를 제공합니다. (에디터 실행 건너뛰기) | optional |
+| `--save` | 프롬프트를 `.acommit/rules.yml`에 **영구적으로 저장**합니다. | optional |
+
+#### 흐름
+
+1.  기본적으로 `vi` 가 실행되어 지침을 작성할 수 있습니다.
+2.  `--save` 옵션이 없으면 다음 실행에 대해서만 임시로 저장됩니다.
+3.  `--save` 옵션이 있으면 반복 사용을 위해 설정 파일에 추가됩니다.
+
+
+### `acommit model`
+
+```sh
+acommit model [options]
+```
+
+초안 생성에 사용할 **LLM 백엔드**(`Gemini` 또는 `OpenAI`)를 선택합니다.
+
+#### 옵션
+
+| 옵션 | 설명 | 유형 |
+| :--- | :--- | :--- |
+| `-p, --provider <name>` | 사용할 LLM 제공자 (`gemini` 또는 `openai`)를 직접 선택합니다. | optional |
+
+#### 흐름
+
+1.  현재 설정된 LLM 제공자를 읽습니다.
+2.  새 선택 항목으로 덮어씁니다. (옵션 미지정 시 대화형 선택기 사용)
+3.  필요한 **환경 변수** 설정에 대한 알림을 출력합니다.
+
+
+### `acommit init`
+
+```sh
+acommit init [options]
+```
+
+`acommit` 설정을 위한 기본 파일인 `.acommit/rules.yml`을 생성하고, 생성된 파일이 커밋되지 않도록 `.gitignore` 파일을 업데이트합니다.
+
+#### 옵션
+
+| 옵션 | 설명 | 유형 |
+| :--- | :--- | :--- |
+| `--lang <code>` | `.acommit/rules.yml` 템플릿의 언어 코드를 지정합니다. (`ko` 또는 `en`, 기본값 `ko`) | optional |
+
+#### 흐름
+
+1.  `rules.yml`이 없으면 템플릿을 복사하여 생성합니다.
+2.  `.gitignore`에 `.acommit/` 항목이 없으면 추가합니다.
+
+
+### `acommit --help`
+
+```sh
+acommit --help
+```
+
+`acommit` CLI의 **전역 옵션과 사용 가능한 명령어 목록**을 표시합니다.
+
+
+## `.acommit/rules.yml` 설정 가이드
+
+`.acommit/rules.yml` 파일은 `acommit` CLI의 **동작 방식**과 **생성되는 커밋 메시지/PR의 스타일**을 정의하는 핵심 설정 파일입니다. 팀의 **커밋 컨벤션**과 **LLM 사용 환경**에 맞게 각 설정을 조정할 수 있습니다.
+
+
+### 1. `tags` (커밋 태그 설정)
+
+| 키 | 설명 | 유형 | 기본값 (예시) |
+| :--- | :--- | :--- | :--- |
+| `enabled` | 태그(`feat`, `fix` 등) 사용 여부 | `boolean` | `true` |
+| `list` | 사용 가능한 태그 목록 (컨벤션 합의 필요) | `array` | `[feat, fix, docs, ...]` |
+| `style` | 태그 출력 형식 템플릿 | `string` | `"{tag}:"` |
+| `separator` | 태그와 본문 사이의 구분자 | `string` | `" "` |
+
+> **`style` 플레이스홀더**:
+> * `{tag}`: 소문자 (`feat`)
+> * `{TAG}`: 대문자 (`FEAT`)
+> * `{Tag}`: 첫 글자 대문자 (`Feat`)
+> * `{scope}`: `conventional.scope.enabled`가 `true`일 때 스코프 값
+> * `{sep}`: `separator` 값
+
+
+### 2. `message` (메시지 본문 설정)
+
+| 키 | 설명 | 유형 | 기본값 (예시) |
+| :--- | :--- | :--- | :--- |
+| `language` | 생성할 메시지의 언어 | `string` | `"ko"` (`ko` \| `en`) |
+| `style` | 문장 스타일 | `string` | `"verb"` (`verb` \| `declarative` \| `imperative` \| `past`) |
+| `tone` | 메시지의 간결함 정도 | `string` | `"concise"` (`concise` \| `detailed`) |
+| `lines` | 메시지의 줄 수 | `string` | `"single"` (`single` \| `multi`) |
+| `wrap` | 제목 줄 길이 가이드라인 (자동 줄바꿈은 아님) | `integer` | `72` |
+
+#### `message.emoji` (이모지 설정)
+
+| 키 | 설명 | 유형 | 기본값 (예시) |
+| :--- | :--- | :--- | :--- |
+| `enabled` | 태그별 이모지 사용 여부 | `boolean` | `false` |
+| `map` | 태그와 이모지 매핑 (`feat: "✨"`, `fix: "🐛"`) | `map` | `{ feat: "✨", ... }` |
+
+
+### 3. `grouping` (커밋 분리/병합 로직)
+
+| 키 | 설명 | 유형 | 기본값 (예시) |
+| :--- | :--- | :--- | :--- |
+| `mode` | 파일 묶음 방식 | `string` | `"by-similarity"` |
+| `directoryDepth` | `by-directory` 모드에서 사용할 디렉터리 깊이 | `integer` | `1` |
+| `minFilesPerGroup` | 이 미만 파일 수의 그룹은 `per-file`로 대체됨 | `integer` | `2` |
+| `threshold` | `by-similarity` 모드의 유사도 기준 (0~1, 높을수록 엄격) | `float` | `0.60` |
+| `maxGroupSize` | 한 그룹에 포함될 수 있는 최대 파일 수 | `integer` | `10` |
+
+> **`mode` 옵션**:
+> * `per-file`: 파일별 1 커밋
+> * `by-tag`: 태그(feat/fix/docs/...)별로 묶음
+> * `by-directory`: 디렉터리 경로 기반으로 묶음
+> * `by-similarity`: 변경 내용/경로/토큰 유사도 기반으로 묶음
+> * `none`: 묶지 않음 (메시지만 생성)
+
+
+### 4. `diff` (Diff 처리 설정)
+
+| 키 | 설명 | 유형 | 기본값 (예시) |
+| :--- | :--- | :--- | :--- |
+| `includeBinary` | 바이너리 파일 내용을 Diff에 포함할지 여부 | `boolean` | `false` |
+| `untrackedSizeLimit` | 신규 파일 본문의 최대 바이트 크기 (초과 시 잘라냄) | `integer` | `512000` |
+
+
+### 5. `ignore` (무시/태그 강제 지정)
+
+| 키 | 설명 | 유형 | 기본값 (예시) |
+| :--- | :--- | :--- | :--- |
+| `files` | 커밋 메시지 생성에서 제외할 경로 패턴 (글롭) | `array` | `[package-lock.json, *.lock, ...]` |
+| `tagsForPaths` | 특정 경로 패턴에 대해 기본 태그를 강제 지정 | `map` | `{ "docs/**": "docs", "scripts/**": "chore" }` |
+
+
+### 6. `llm` (대규모 언어 모델 설정)
+
+| 키 | 설명 | 유형 | 기본값 (예시) |
+| :--- | :--- | :--- | :--- |
+| `provider` | 사용할 LLM 서비스 제공자 | `string` | `"gemini"` (`gemini` \| `openai`) |
+| `model` | 사용할 모델 이름 (미지정 시 환경 변수 사용) | `string` | `gpt-4o` |
+| `maxPromptTokens` | 프롬프트 토큰의 상한선 (안전 장치) | `integer` | `200000` |
+| `maxOutputTokens` | 출력 토큰의 상한선 (안전 장치) | `integer` | `4000` |
+
+
+### 7. `conventional` (Conventional Commits 설정)
+
+| 키 | 설명 | 유형 | 기본값 (예시) |
+| :--- | :--- | :--- | :--- |
+| `compatible` | Conventional Commits 규격 준수 여부 | `boolean` | `false` |
+
+#### `conventional.scope` (스코프 설정)
+
+| 키 | 설명 | 유형 | 기본값 (예시) |
+| :--- | :--- | :--- | :--- |
+| `enabled` | 스코프 (`(helper)`, `(api)`) 출력 사용 여부 | `boolean` | `false` |
+| `inferFromPath` | 파일 경로에서 스코프를 자동 추론할지 여부 | `boolean` | `true` |
+
+> **예시**: `compatible: true`, `scope.enabled: true`, `tags.style: "{tag}({scope}):"`로 설정 시,
+> 결과는 `"feat(helper): 메시지"` 와 같이 생성될 수 있습니다.
+
+> [!TIP]
+> 템플릿을 편집한 후 커밋하여 팀원들이 동일한 규칙을 상속하도록 할 수 있습니다.
+
+
+## 4. 환경 변수 및 API 키
 
 ### 1) `.env` 템플릿
-`.env.sample` 참고:
+
+`.env.sample` 참조
+
 ```
 GEMINI_MODEL=
 GEMINI_API_KEY=
@@ -250,39 +301,28 @@ OPENAI_MODEL=
 OPENAI_API_KEY=
 ```
 
-### 2) API 키 발급
-- **Gemini (Google AI Studio)**  
-  1. [Google AI Studio](https://makersuite.google.com/) 접속  
-  2. API key 발급 후 `.env` 의 `GEMINI_API_KEY` 에 입력  
-  3. 사용할 모델명을 `GEMINI_MODEL` 로 지정 (`gemini-2.5-flash` 등)
+### 2) API 키
 
-- **OpenAI**  
-  1. [OpenAI Dashboard](https://platform.openai.com/) → API keys  
-  2. `OPENAI_API_KEY` 로 저장  
-  3. `OPENAI_MODEL` 은 `gpt-4o`, `gpt-4o-mini` 등 원하는 모델 이름으로 설정
+  - **Gemini (Google AI Studio)**
 
----
+    1.  [Google AI Studio](https://makersuite.google.com/)를 방문합니다.
+    2.  API 키를 생성하고 `GEMINI_API_KEY`에 저장합니다.
+    3.  `GEMINI_MODEL`을 설정합니다 (예: `gemini-2.5-flash`).
 
-## 5. 내부 동작 원리 (간단 요약)
+  - **OpenAI**
 
-1. **Diff 수집** — `DiffCollector` 가 Git diff를 파일 단위로 읽고 필터링합니다.  
-2. **설정 로드** — `loadConfig` 가 `.acommit/rules.yml` 과 기본 스키마(`schema.js`)를 합쳐 유효한 설정 객체를 생성합니다.  
-3. **프롬프트 구성** — `buildPromptFromDiff` 가 시스템 메시지/사용자 메시지/보조 프롬프트를 합성하고 토큰 수를 추산합니다.  
-4. **LLM 호출** — `createLLMClient` 가 `llm.provider` 에 맞는 모듈(`gemini.js`, `openai.js`)을 로드해 `gen()` 으로 결과를 받아옵니다.  
-5. **결과 저장** — 콘솔 출력과 함께 `appendResult` 가 `.acommit/results/<timestamp>.md` 파일을 만들어 히스토리를 남깁니다.  
-6. **UI/로그** — `ProgressUI` 와 `logger` 가 진행 상태, 오류, 디버그 정보를 보여줍니다.
+    1.  [OpenAI Dashboard](https://platform.openai.com/)를 방문합니다.
+    2.  키를 `OPENAI_API_KEY`에 저장합니다.
+    3.  `OPENAI_MODEL`을 선택합니다 (예: `gpt-4o`, `gpt-4o-mini`).
 
----
 
-## 6. 개발 · 테스트 팁
+## 5. 라이선스
 
-- **개발 실행**: `node bin/acommit.js run` 으로 로컬 버전을 직접 실행할 수 있습니다.
-- **테스트**: `npm test` (Jest) 또는 `node test/run-tests.js` 로 LLM 계약 테스트를 수행합니다.
-- **디버깅**: `acommit run -V` 로 Verbose 로그를 활성화하면 LLM 요청/응답 요약을 확인할 수 있습니다.
+MIT 라이선스 © 2025 — SeungjoonH.
+출처가 보존되는 한 자유롭게 사용, 수정 및 배포할 수 있습니다.
 
----
 
-## 7. 라이선스
+## 6. 오픈소스 협업
 
-MIT License © 2025 — SeungjoonH.  
-출처 표기만 유지하면 누구나 자유롭게 사용·수정·배포할 수 있습니다.
+이 프로젝트는 오픈소스로 운영되며, 누구나 자유롭게 참여할 수 있습니다.  
+버그 수정, 기능 제안, 문서 개선, 코드 리팩토링 등 모든 형태의 **Pull Request** 를 환영합니다.
