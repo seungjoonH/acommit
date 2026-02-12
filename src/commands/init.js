@@ -5,31 +5,31 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const TEMPLATE_PATHS = {
-  ko: path.resolve(__dirname, "../../templates/.acommit.ko.yml"),
-  en: path.resolve(__dirname, "../../templates/.acommit.en.yml"),
+  ko: path.resolve(__dirname, "../../samples/config/commit.ko.yml"),
+  en: path.resolve(__dirname, "../../samples/config/commit.en.yml"),
 };
 
-export async function initConfig({ lang = "ko", cwd = process.cwd() } = {}) {
+export async function initConfig({ lang = "en", cwd = process.cwd() } = {}) {
   const acomDir = path.join(cwd, ".acommit");
   const target = path.join(acomDir, "rules.yml");
-  const templatePath = TEMPLATE_PATHS[lang] || TEMPLATE_PATHS.ko;
+  const templatePath = TEMPLATE_PATHS[lang] || TEMPLATE_PATHS.en;
 
-  // .acommit 디렉토리 없으면 생성
+  // .acommit directory creation
   await fs.mkdir(acomDir, { recursive: true });
 
-  // rules.yml이 이미 존재하면 스킵
+  // Existing rules guard
   try {
     await fs.access(target);
     console.log(`[acommit] .acommit/rules.yml already exists at ${target}`);
     return;
   } catch {}
 
-  // 템플릿 복사
+  // Template copy
   const content = await fs.readFile(templatePath, "utf8");
   await fs.writeFile(target, content, "utf8");
   console.log(`[acommit] created .acommit/rules.yml (${lang}) at ${target}`);
 
-  // .gitignore에 추가
+  // .gitignore update
   const gitignorePath = path.join(cwd, ".gitignore");
   try {
     let gitignore = "";
