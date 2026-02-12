@@ -8,7 +8,7 @@ export const DEFAULTS = {
   prompts: [],
 
   message: {
-    // 내부 표준 키는 lang. YAML에서는 language를 받아 매핑함.
+    // Language alias mapping
     lang: "ko",
     tone: "concise",           // "concise" | "detailed"
     style: "verb",             // "verb" | "declarative" | "imperative" | "past"
@@ -21,7 +21,7 @@ export const DEFAULTS = {
     enabled: true,
     list: ["feat","fix","docs","chore","refactor","test","perf","build","ci"],
     separator: " ",
-    render: null,              // 함수 주입 가능. 없으면 아래 case/bracket 규칙 사용
+    render: null,              // Custom renderer placeholder
     case: "lower",             // "lower" | "upper" | "capitalize"
     bracket: "none",           // "none" | "square" | "round"
   },
@@ -29,11 +29,11 @@ export const DEFAULTS = {
   grouping: {
     // per-file | by-tag | by-directory | by-similarity | none
     mode: "per-file",
-    // by-directory 전용
+    // Directory grouping settings
     directoryDepth: 1,
-    // by-tag / by-directory 전용
+    // Tag/directory grouping thresholds
     minFilesPerGroup: 2,
-    // by-similarity 전용
+    // Similarity grouping thresholds
     threshold: 0.6,            // 0~1
     maxGroupSize: 10,
   },
@@ -41,7 +41,6 @@ export const DEFAULTS = {
   diff: {
     includeBinary: false,
     untrackedSizeLimit: 512_000,
-    context: 3,
   },
 
   ignore: {
@@ -71,15 +70,15 @@ function mergeDefaults(user = {}) {
 export function normalize(user = {}) {
   const out = mergeDefaults(user);
 
-  // ── message.language -> message.lang 매핑
+  // message.language remapping
   if (user?.message?.language && !user?.message?.lang) {
     out.message.lang = String(user.message.language).trim() || DEFAULTS.message.lang;
   }
 
-  // ── message.lines 유효성
+  // message.lines validation
   if (!["single", "multi"].includes(out.message.lines)) out.message.lines = "single";
 
-  // ── tags.render가 없으면 case/bracket 규칙으로 기본 렌더 정의
+  // Tag renderer fallback
   if (typeof out.tags.render !== "function") {
     const toCase = (s) => {
       if (out.tags.case === "upper") return s.toUpperCase();
@@ -93,7 +92,7 @@ export function normalize(user = {}) {
     };
     out.tags.render = (tag) => {
       const t = wrap(toCase(tag));
-      // bracket이 없는 경우에만 콜론 자동 부착(관례)
+      // Colon handling when no brackets are requested
       const needsColon = out.tags.bracket === "none";
       const suffix = needsColon ? ":" : "";
       return `${t}${suffix}`;
@@ -101,7 +100,7 @@ export function normalize(user = {}) {
   }
   if (out.tags.separator == null) out.tags.separator = " ";
 
-  // ── grouping 유효성
+  // Grouping validation
   const modes = new Set(["per-file","by-tag","by-directory","by-similarity","none"]);
   if (!modes.has(out.grouping.mode)) out.grouping.mode = "per-file";
 

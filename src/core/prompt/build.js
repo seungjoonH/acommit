@@ -1,9 +1,6 @@
-// src/core/prompt/build.js
 import { CHARS_PER_TOKEN } from "../constants.js";
 
-/* ──────────────────────────────
- * Grouping descriptor
- * ────────────────────────────── */
+/* ── Grouping descriptor ── */
 function describeGrouping(cfg) {
   const g = cfg.grouping ?? {};
   const mode = g.mode ?? "per-file";
@@ -52,9 +49,7 @@ function describeGrouping(cfg) {
   return lines.join("\n");
 }
 
-/* ──────────────────────────────
- * Tag style descriptor
- * ────────────────────────────── */
+/* ── Tag style descriptor ── */
 function describeTagStyle(cfg) {
   if (!cfg?.tags?.enabled) return "Tag prefix: DISABLED";
   const tag = (cfg.tags.list?.[0] ?? "feat");
@@ -66,9 +61,7 @@ function describeTagStyle(cfg) {
   return `Tag prefix: ENABLED; allowed=[${allowed}]; example="${rendered}${sep}"`;
 }
 
-/* ──────────────────────────────
- * Token helpers
- * ────────────────────────────── */
+/* ── Token helpers ── */
 function estimateTokens(str) {
   return Math.ceil((str?.length || 0) / CHARS_PER_TOKEN);
 }
@@ -79,7 +72,6 @@ function truncateByTokens(str, maxTokens) {
   if (str.length <= maxChars) return str;
 
   const cut = str.slice(0, maxChars);
-  // 안전 앵커들: 구분선 / FILENAME 헤더 / 과거 호환 '----'
   const anchors = [
     "\n--------------------------------------------",
     "\n[FILENAME]:",
@@ -93,15 +85,9 @@ function truncateByTokens(str, maxTokens) {
   return `${safe}\n\n/* truncated for token budget */`;
 }
 
-/* ──────────────────────────────
- * Main
- * ────────────────────────────── */
-export function buildPromptFromDiff(config, diffText, extraPrompts = []) {
-  const budget = Math.floor(config.llm.maxPromptTokens * 0.85);
-  const headerReserve = 512;
-  const diffBudget = Math.max(256, budget - headerReserve);
-
-  const sys = [
+/* ── System prompt (commit only) ── */
+function buildSystemPrompt(config) {
+  return [
     "You are a precise commit message generator.",
     `Language: ${config.message.lang}`,
     `Tone: ${config.message.tone}`,
@@ -125,8 +111,11 @@ export function buildPromptFromDiff(config, diffText, extraPrompts = []) {
     "The shell block MUST include only 'git add …' and 'git commit -m …' lines.",
     "Do NOT include any other commands, comments, or annotations in that block."
   ].join("\n");
+}
 
-  const userHeader = [
+/* ── User prompt header (commit only) ── */
+function buildUserHeader() {
+  return [
     "# INPUT: Git-style changes (per file blocks)",
     "- Blocks start with '----' and include [FILENAME], [DIFFERENCES].",
     "- Some contents may be truncated for length.",
@@ -138,14 +127,29 @@ export function buildPromptFromDiff(config, diffText, extraPrompts = []) {
     "- Do not include code blocks unless needed for the shell commands.",
     "",
   ].join("\n");
+}
+
+/* ── Main entry ── */
+export function buildPromptFromDiff(config, diffText, extraPrompts = []) {
+  const budget = Math.floor(config.llm.maxPromptTokens * 0.85);
+  const headerReserve = 512;
+  const diffBudget = Math.max(256, budget - headerReserve);
+
+  const sys = buildSystemPrompt(config);
+  const userHeader = buildUserHeader();
   const trimmedDiff = truncateByTokens(diffText, diffBudget);
 
-  // extraPrompts: array of { source: 'persistent'|'one-time', text: '...' }
   const promptsSection = (Array.isArray(extraPrompts) && extraPrompts.length)
     ? ["# ADDITIONAL PROMPTS (user-provided):", ...extraPrompts.map(p => `- ${p.text}`), ""]
     : [];
 
-  const user = `${userHeader}\n${promptsSection.join('\n')}\n${trimmedDiff}`;
+  const sections = [
+    userHeader,
+    promptsSection.join('\n'),
+    trimmedDiff,
+  ].filter(Boolean);
+
+  const user = sections.join("\n");
   const approxTokens = estimateTokens(sys) + estimateTokens(user);
 
   return { system: sys, user, approxTokens };
