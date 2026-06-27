@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import Section from './Section.jsx';
 import Field from './Field.jsx';
-import ChipInput from './ChipInput.jsx';
 import { ensureMappedTagsInList } from '../rules/syncTags.js';
 
 const inputStyle = {
@@ -103,7 +102,6 @@ function TagsForPathsEditor({ value, onChange, onSyncTags, t }) {
 
 export default function IgnoreSection({ cfg, onChange, t }) {
   const ignore = cfg.ignore ?? {};
-  const setFiles = (v) => onChange({ ...cfg, ignore: { ...ignore, files: v } });
 
   const setTagsForPaths = (v) => {
     onChange({ ...cfg, ignore: { ...ignore, tagsForPaths: v } });
@@ -119,14 +117,6 @@ export default function IgnoreSection({ cfg, onChange, t }) {
 
   return (
     <Section title={t('ignore')} desc={t('ignoreDesc')} defaultOpen={false}>
-      <Field label={t('ignoreFiles')} id="ignore.files" desc={t('ignoreFilesDesc')} horizontal={false}>
-        <ChipInput
-          values={ignore.files ?? []}
-          onChange={setFiles}
-          placeholder={t('ignorePatternPlaceholder')}
-        />
-      </Field>
-
       <Field label={t('ignoreTagsForPaths')} id="ignore.tagsForPaths" desc={t('ignoreTagsForPathsDesc')} horizontal={false}>
         <TagsForPathsEditor
           value={ignore.tagsForPaths ?? {}}
