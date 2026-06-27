@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { appendSeparator, migrateLegacyTagFormat } from '@acommit/core/tags/render.js';
+import { buildCommitShellLines } from '../../src/utils/commitShell.js';
 import Icon from './components/Icon.jsx';
 import Toast from './components/Toast.jsx';
 
@@ -69,7 +71,7 @@ function buildSubjectPrefix(tag, tagStyle, tagSeparator) {
     .replace(/\{Tag\}/g,   tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase())
     .replace(/\{scope\}/g, '')
     .replace(/\{sep\}/g,   sep);
-  return rendered.endsWith(sep) ? rendered : rendered + sep;
+  return appendSeparator(rendered, sep);
 }
 
 function rebuildSubject(commit, tagStyle, tagSeparator) {
@@ -77,23 +79,15 @@ function rebuildSubject(commit, tagStyle, tagSeparator) {
   return buildSubjectPrefix(commit.tag, tagStyle, tagSeparator) + commit.message;
 }
 
-function escapePath(p) {
-  return p.replace(/[\[\]()]/g, '\\$&');
-}
-
 function rebuildShell(commit, subject) {
   const files = commit.files ?? [];
-  const lines = [];
-  if (files.length) lines.push(`git add ${files.map(escapePath).join(' ')}`);
   const escaped = subject.replace(/"/g, '\\"');
-  lines.push(`git commit -m "${escaped}"`);
-  return lines;
+  return buildCommitShellLines(files, `git commit -m "${escaped}"`);
 }
 
-// Normalize sessions saved with old default ({tag}: / separator " ")
+// Normalize sessions saved with old default ({tag}: + separator ": ", " ", or ":")
 function normalizeTagFormat(style, sep) {
-  if (style === '{tag}:' && sep === ' ') return ['{tag}', ': '];
-  return [style, sep];
+  return migrateLegacyTagFormat(style, sep);
 }
 
 const TAG_COLOR = {
@@ -496,45 +490,60 @@ export default function ResultPage() {
   const shortLabel = (s) => `${s.id}  ${s.commitCount}c`;
 
   const HEADER_H = 45;
+  const CONTENT_MAX = 1100;
+  const H_PAD = 24;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
       {/* ── Top header ── */}
       <div style={{
-        position: 'sticky', top: 0, zIndex: 200, height: `${HEADER_H}px`,
+        position: 'sticky', top: 0, zIndex: 200,
         background: 'var(--surface)', borderBottom: '1px solid var(--border)',
-        padding: '0 16px', display: 'flex', alignItems: 'center', gap: '10px',
       }}>
-        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
-          {t.title}
-        </span>
-        <select
-          style={{
-            background: 'var(--surface2)', border: '1px solid var(--border)',
-            borderRadius: '4px', color: 'var(--text)',
-            padding: '3px 8px', fontSize: '12px', cursor: 'pointer', flex: 1, maxWidth: '400px',
-          }}
-          value={selectedId}
-          onChange={e => setSelectedId(e.target.value)}
-        >
-          {sessions.length === 0 && <option value="">{t.noSession}</option>}
-          {sessions.map(s => (
-            <option key={s.id} value={s.id}>{shortLabel(s)}</option>
-          ))}
-        </select>
-        {session && (
-          <>
-            <button style={mkBtn()} onClick={copyAll}>{t.copyAll}</button>
-            <button style={mkBtn('accent')} onClick={executeAll} disabled={executing}>
-              {executing ? t.running : t.runAll}
-            </button>
-          </>
-        )}
+        <div style={{
+          maxWidth: CONTENT_MAX,
+          margin: '0 auto',
+          padding: `0 ${H_PAD}px`,
+          height: `${HEADER_H}px`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+        }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {t.title}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flexShrink: 1, justifyContent: 'flex-end' }}>
+            <select
+              style={{
+                background: 'var(--surface2)', border: '1px solid var(--border)',
+                borderRadius: '4px', color: 'var(--text)',
+                padding: '3px 8px', fontSize: '12px', cursor: 'pointer',
+                maxWidth: '280px', minWidth: '140px', flex: '1 1 auto',
+              }}
+              value={selectedId}
+              onChange={e => setSelectedId(e.target.value)}
+            >
+              {sessions.length === 0 && <option value="">{t.noSession}</option>}
+              {sessions.map(s => (
+                <option key={s.id} value={s.id}>{shortLabel(s)}</option>
+              ))}
+            </select>
+            {session && (
+              <>
+                <button style={mkBtn()} onClick={copyAll}>{t.copyAll}</button>
+                <button style={mkBtn('accent')} onClick={executeAll} disabled={executing}>
+                  {executing ? t.running : t.runAll}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ── Body: sidebar + main ── */}
       <div style={{ display: 'flex', justifyContent: 'center', minHeight: `calc(100vh - ${HEADER_H}px)` }}>
-      <div style={{ display: 'flex', width: '100%', maxWidth: '1100px' }}>
+      <div style={{ display: 'flex', width: '100%', maxWidth: CONTENT_MAX, padding: `0 ${H_PAD}px` }}>
         {/* Sidebar */}
         {session && (
           <Sidebar commits={session.commits ?? []} onFileClick={scrollToCard} t={t} />

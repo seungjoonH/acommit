@@ -17,7 +17,7 @@ const DEFAULTS = {
   tags: {
     enabled: true,
     list: ['feat', 'fix', 'docs', 'chore', 'refactor', 'test', 'perf', 'build', 'ci'],
-    style: '{tag}:',
+    style: '{tag}',
     separator: ': ',
     case: 'lower',
     bracket: 'none',
@@ -46,6 +46,8 @@ const DEFAULTS = {
       'scripts/**': 'chore',
       '**/package-lock.json': 'chore',
       '*.lock': 'chore',
+      'pnpm-lock.yaml': 'chore',
+      'yarn.lock': 'chore',
     },
   },
   diff: {
