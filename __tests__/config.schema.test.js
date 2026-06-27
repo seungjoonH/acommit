@@ -6,15 +6,19 @@ describe('normalize()', () => {
     expect(cfg.message.lang).toBe('ko');
     expect(cfg.tags.enabled).toBe(true);
     expect(cfg.tags.separator).toBe(': ');
+    expect(cfg.tags.style).toBe('{tag}');
     expect(cfg.grouping.mode).toBe('per-file');
     expect(typeof cfg.tags.render).toBe('function');
   });
 
   describe('tags.style template parser', () => {
-    test('{tag}: → lowercase with colon', () => {
-      const cfg = normalize({ tags: { style: '{tag}:' } });
-      expect(cfg.tags.render('feat')).toBe('feat:');
-      expect(cfg.tags.render('FIX')).toBe('fix:');
+    test('{tag}: legacy migrates to {tag} + : separator', () => {
+      for (const sep of [': ', ' ', ':']) {
+        const cfg = normalize({ tags: { style: '{tag}:', separator: sep } });
+        expect(cfg.tags.style).toBe('{tag}');
+        expect(cfg.tags.separator).toBe(': ');
+        expect(cfg.tags.render('feat')).toBe('feat');
+      }
     });
 
     test('{TAG}: → uppercase', () => {
