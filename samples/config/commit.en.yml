@@ -73,16 +73,26 @@ grouping:
 diff:
   includeBinary: false       # Include binary file contents (usually false)
   untrackedSizeLimit: 512000 # Max bytes for new file contents (truncate beyond)
-
-ignore:
-  files:                     # Glob patterns to skip when generating messages
+  # Metadata-only: still in git add/commit; LLM sees path/metadata only
+  omitContent:
+    - "**/package-lock.json"
     - "package-lock.json"
     - "*.lock"
+    - "pnpm-lock.yaml"
+    - "yarn.lock"
+    - "**/*.min.js"
+    - "**/*.map"
+  # Fully skip: acommit does not process these paths
+  skip:
     - "dist/**"
-  # Force default tag for matched paths (optional)
+
+ignore:
+  # Force default tag for matched paths (optional; unrelated to diff omit/skip)
   tagsForPaths:
     "docs/**": "docs"
     "scripts/**": "chore"
+    "**/package-lock.json": "chore"
+    "*.lock": "chore"
 
 llm:
   provider: "gemini"         # "gemini" or "openai"
