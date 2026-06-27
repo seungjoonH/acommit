@@ -2,14 +2,34 @@
 import { CHARS_PER_TOKEN, ENTRY_SEPARATOR } from "../constants.js";
 import { describeTagExample } from "../tags/render.js";
 
+function filteredPathTagEntries(cfg) {
+  const entries = Object.entries(cfg.ignore?.tagsForPaths ?? {});
+  if (cfg.tags?.enabled === false) return entries;
+  const allowed = new Set((cfg.tags?.list || []).map((t) => String(t).toLowerCase()));
+  if (!allowed.size) return entries;
+  return entries.filter(([, tag]) => allowed.has(String(tag).toLowerCase()));
+}
+
+function describeTagHeuristics(cfg) {
+  if (cfg?.tags?.enabled === false) return '';
+  return [
+    'Tag selection (use allowed tags only):',
+    '- refactor: extract/move/reorganize logic (new module from existing inline code; update call sites)',
+    '- fix: bug fix, validation, stricter input checks',
+    '- feat: new capability or behavior',
+    '- docs: documentation-only changes under docs/**',
+    '- test: test-only changes',
+    '- chore: tooling, CI, lockfiles',
+  ].join('\n');
+}
+
 function describeGrouping(cfg) {
   const g = cfg.grouping ?? {};
   const mode = g.mode ?? "per-file";
   const minFiles = Number.isFinite(g.minFilesPerGroup) ? g.minFilesPerGroup : 2;
   const depth = Number.isFinite(g.directoryDepth) ? g.directoryDepth : 1;
 
-  const pathTagHints = cfg.ignore?.tagsForPaths ?? {};
-  const pathHintsList = Object.entries(pathTagHints).map(
+  const pathHintsList = filteredPathTagEntries(cfg).map(
     ([pattern, tag]) => `- "${pattern}" => "${tag}"`
   );
 
@@ -20,8 +40,10 @@ function describeGrouping(cfg) {
 
   if (mode === "by-directory") {
     lines.push(
-      `- directoryDepth: ${depth} (group by first ${depth} path segment(s))`,
-      `- If a directory bucket has < minFilesPerGroup (${minFiles}), fall back to per-file commits.`
+      `- directoryDepth: ${depth} — bucket = first ${depth} path segment(s) of each [FILENAME].`,
+      `- NEVER mix files from different buckets in one commit (e.g. apps/admin/* and apps/storefront/* are separate).`,
+      `- One commit per bucket that has ≥ minFilesPerGroup (${minFiles}) files; smaller buckets → per-file commits.`,
+      `- Example depth 2: apps/admin/* | apps/storefront/* | libs/shared/* | tools/ci/* → separate commits.`,
     );
   } else if (mode === "by-tag") {
     lines.push(
@@ -34,10 +56,14 @@ function describeGrouping(cfg) {
     lines.push(
       `- Cluster files by path/filename similarity (threshold=${g.threshold}, maxGroupSize=${g.maxGroupSize}).`,
       `- If a cluster has < minFilesPerGroup (${minFiles}), fall back to per-file commits.`,
-      "- Prefer splitting when intent differs."
+      "- Split when top-level prefix or intent differs (e.g. packages/auth vs packages/billing vs docs/).",
+      "- Each commit message must match ONLY the files in that group (do not describe billing changes in an auth commit).",
     );
   } else if (mode === "per-file") {
-    lines.push("- Create exactly one commit per file.");
+    lines.push(
+      "- Create exactly one commit per file.",
+      "- Emit a separate git add + git commit pair for EVERY file — never bundle multiple files in one git add.",
+    );
   } else if (mode === "none") {
     lines.push("- Produce commit messages only; still include per-file shell commands (git add + git commit).");
   }
@@ -76,10 +102,10 @@ function describeConventionalRules(cfg) {
 }
 
 function describePathTagRules(cfg) {
-  const entries = Object.entries(cfg.ignore?.tagsForPaths ?? {});
+  const entries = filteredPathTagEntries(cfg);
   if (!entries.length) return "";
   return [
-    "Path → tag overrides (apply to every grouping mode):",
+    "Path → tag overrides (apply to every grouping mode; must use allowed tags only):",
     ...entries.map(([pattern, tag]) => `- "${pattern}" => tag "${tag}"`),
   ].join("\n");
 }
@@ -170,6 +196,7 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
       `Lines: ${config.message.lines}`,
       `Subject width: ≤ ${config.message.wrap} characters when possible.`,
       describeTagStyle(config),
+      describeTagHeuristics(config),
       describeConventionalRules(config),
       describeEmojiRules(config),
       describePathTagRules(config),
@@ -180,7 +207,10 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
         ? "Line 1: subject"
         : `Line 1: subject only (example: ${sampleSubject})`,
       ...(config.message.lines === 'multi'
-        ? ["Lines 2-5: 2-4 concise bullet points"]
+        ? [
+          "Lines 2-5: 2-4 concise bullet points (use - bullets only).",
+          "Do NOT use per-file changelog headers like \"src/foo.js:\" in the body.",
+        ]
         : []),
       "Then exactly:",
       "git add <every file path on ONE line, space-separated>",
@@ -205,6 +235,7 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
     `Lines: ${config.message.lines}`,
     `Subject width: keep subject ≤ ${config.message.wrap} characters when possible.`,
     describeTagStyle(config),
+    describeTagHeuristics(config),
     describeConventionalRules(config),
     describeEmojiRules(config),
     describePathTagRules(config),
@@ -215,10 +246,10 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
     "Rules:",
     "- Do not invent changes; only use provided diffs.",
     "- If lines=single, output only one subject line.",
-    "- If lines=multi, output subject then 2-4 concise bullets.",
+    "- If lines=multi, output subject then 2-4 concise bullets (no per-file path headers).",
     "- Keep output in the specified language and style.",
     "",
-    "At the end, include a shell block with executable git commands to apply the commits.",
+    "At the end, include a shell block wrapped in ```bash ... ``` with executable git commands.",
     "The commands must be copy-paste ready and grouped logically by the messages you produce.",
     "The order of groups in the shell block MUST match the message groups.",
     "The shell block MUST include only 'git add …' and 'git commit -m …' lines.",
