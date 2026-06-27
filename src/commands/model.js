@@ -1,13 +1,17 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import readline from 'node:readline';
 import YAML from 'yaml';
+import {
+  isRuntimeProvider,
+  parseLlmConfig,
+  resolveLlmConfig,
+  apiKeyHint,
+} from '../core/llm/catalog.js';
+import { readLocale } from '../core/locale.js';
+import { pickLlmConfig } from '../ui/llm-pick.js';
+import { initStrings } from '../ui/init-i18n.js';
+import { createTuiSession, pc } from '../ui/tui.js';
 import logger from '../utils/logger.js';
-
-const PROVIDERS = [
-  { value: 'gemini', label: 'Gemini (Google AI Studio)' },
-  { value: 'openai', label: 'OpenAI' },
-];
 
 const RULES_DIR = path.join(process.cwd(), '.acommit');
 const RULES_PATH = path.join(RULES_DIR, 'rules.yml');
@@ -31,108 +35,56 @@ async function saveRules(rules) {
   await fs.writeFile(RULES_PATH, serialized, 'utf8');
 }
 
-function renderList(index, current, linesPrintedRef) {
-  if (linesPrintedRef.count) {
-    readline.moveCursor(process.stdout, 0, -linesPrintedRef.count);
-    readline.clearScreenDown(process.stdout);
-  }
-  const lines = PROVIDERS.map((p, idx) => {
-    const cursor = idx === index ? '*' : ' ';
-    const suffix = current && current === p.value ? ' (current)' : '';
-    return `${cursor} ${p.value}${suffix}`;
-  });
-  process.stdout.write(lines.join('\n') + '\n');
-  linesPrintedRef.count = lines.length;
-}
-
-async function interactiveSelect(current) {
-  if (!process.stdin.isTTY) {
-    logger.error('Interactive selection requires a TTY. Re-run in a terminal or use --provider <name>.');
+function validateLlmFlags({ provider, model }) {
+  if (provider && !isRuntimeProvider(provider)) {
+    logger.error(`Unknown provider '${provider}'. Supported: gemini, openai, openrouter`);
     return null;
   }
-
-  readline.emitKeypressEvents(process.stdin);
-  if (process.stdin.isTTY) process.stdin.setRawMode(true);
-  process.stdin.resume();
-
-  console.log('Use ↑/↓ to choose a provider, Enter to confirm, Ctrl+C to cancel.\n');
-
-  let index = Math.max(0, PROVIDERS.findIndex((p) => p.value === current));
-  if (index === -1) index = 0;
-  const linesPrintedRef = { count: 0 };
-
-  renderList(index, current, linesPrintedRef);
-
-  return new Promise((resolve) => {
-    const detach = () => {
-      if (process.stdin.isTTY) process.stdin.setRawMode(false);
-      process.stdin.removeListener('keypress', handleKey);
-      process.stdin.pause();
-      process.stdout.write('\n');
-    };
-
-    const handleKey = (_str, key = {}) => {
-      if (key.name === 'up') {
-        index = (index - 1 + PROVIDERS.length) % PROVIDERS.length;
-        renderList(index, current, linesPrintedRef);
-        return;
-      }
-      if (key.name === 'down') {
-        index = (index + 1) % PROVIDERS.length;
-        renderList(index, current, linesPrintedRef);
-        return;
-      }
-      if (key.name === 'return') {
-        detach();
-        resolve(PROVIDERS[index].value);
-        return;
-      }
-      if (key.ctrl && key.name === 'c') {
-        detach();
-        resolve(null);
-      }
-    };
-
-    process.stdin.on('keypress', handleKey);
-  });
-}
-
-function validateProvider(value) {
-  const normalized = String(value || '').toLowerCase();
-  if (!normalized) return null;
-  const exists = PROVIDERS.some((p) => p.value === normalized);
-  if (!exists) {
-    logger.error(`Unknown provider '${value}'. Supported: ${PROVIDERS.map((p) => p.value).join(', ')}`);
-    return null;
-  }
-  return normalized;
+  if (!provider) return null;
+  if (model) return { provider: provider.toLowerCase(), model };
+  return resolveLlmConfig(parseLlmConfig({ provider }));
 }
 
 export async function modelCommand(opts = {}) {
   const rules = await loadRules();
-  const current = rules?.llm?.provider || null;
+  const current = rules?.llm || {};
+  const locale = await readLocale();
+  const t = initStrings(locale);
 
-  let provider = null;
-  if (opts.provider) {
-    provider = validateProvider(opts.provider);
-    if (!provider) return;
-  } else {
-    provider = await interactiveSelect(current);
-    if (!provider) {
-      logger.warn('Selection cancelled. No changes applied.');
+  let llm = null;
+  if (opts.provider || opts.model) {
+    llm = validateLlmFlags({ provider: opts.provider, model: opts.model });
+    if (!llm) return;
+  } else if (process.stdin.isTTY) {
+    const tui = createTuiSession(t.modelCmd.title);
+    llm = await pickLlmConfig({
+      session: tui,
+      labels: t.llmPick,
+      current,
+    });
+    if (!llm) {
+      tui.cancel(t.modelCmd.cancel);
       return;
     }
+
+    const next = { ...rules, llm: { ...(rules.llm || {}), ...llm } };
+    await saveRules(next);
+
+    const hint = apiKeyHint(llm);
+    const summary = `${llm.provider} / ${llm.model}. ${hint}`;
+    tui.finish(pc.green(`LLM → ${summary}`));
+    return;
+  } else {
+    logger.error('Interactive selection requires a TTY. Use --provider and --model.');
+    return;
   }
 
-  const next = { ...rules, llm: { ...(rules.llm || {}) } };
-  next.llm.provider = provider;
+  const next = { ...rules, llm: { ...(rules.llm || {}), ...llm } };
   await saveRules(next);
 
-  const hint = provider === 'openai'
-    ? 'Set OPENAI_API_KEY and optionally OPENAI_MODEL.'
-    : 'Set GEMINI_API_KEY and optionally GEMINI_MODEL.';
-
-  logger.info(`LLM provider set to '${provider}'. ${hint}`);
+  const hint = apiKeyHint(llm);
+  const summary = `${llm.provider} / ${llm.model}. ${hint}`;
+  logger.info(`LLM set to ${summary}`);
 }
 
 export default modelCommand;
