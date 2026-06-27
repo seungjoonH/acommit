@@ -84,13 +84,25 @@ function describePathTagRules(cfg) {
   ].join("\n");
 }
 
-function describeIgnoreRules(cfg) {
-  const files = cfg.ignore?.files ?? [];
-  if (!files.length) return "";
-  return [
-    "Ignored paths (excluded from diff input):",
-    ...files.map((p) => `- ${p}`),
-  ].join("\n");
+function describeDiffRules(cfg) {
+  const omit = cfg.diff?.omitContent ?? [];
+  const skip = cfg.diff?.skip ?? [];
+  const lines = [];
+  if (omit.length) {
+    lines.push(
+      "Diff content omitted (metadata only — still include in git add/commit):",
+      ...omit.map((p) => `- ${p}`),
+      "- Infer commit message from path/filename and metadata only; do not invent line-level changes.",
+    );
+  }
+  if (skip.length) {
+    lines.push(
+      "Fully excluded from acommit (no commit message or git commands):",
+      ...skip.map((p) => `- ${p}`),
+    );
+  }
+  if (!lines.length) return "";
+  return lines.join("\n");
 }
 
 function describeEmojiRules(cfg) {
@@ -161,6 +173,7 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
       describeConventionalRules(config),
       describeEmojiRules(config),
       describePathTagRules(config),
+      describeDiffRules(config),
       "",
       "Output format (strict — no markdown, no headings):",
       config.message.lines === 'multi'
@@ -195,7 +208,7 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
     describeConventionalRules(config),
     describeEmojiRules(config),
     describePathTagRules(config),
-    describeIgnoreRules(config),
+    describeDiffRules(config),
     "",
     describeGrouping(config),
     "",
@@ -220,6 +233,7 @@ function buildUserHeader() {
     "# INPUT: Git-style changes (per file blocks)",
     `- Blocks are separated by '${ENTRY_SEPARATOR}' and include [FILENAME], [DIFFERENCES].`,
     "- Some contents may be truncated for length.",
+    "- Blocks marked CONTENT OMITTED include path/metadata only — still commit those files.",
     "",
     "# TASK:",
     "- Generate commit message(s) that follow the rules above.",
@@ -244,6 +258,7 @@ export function buildPromptFromDiff(config, diffText, extraPrompts = [], opts = 
           ? `# Files in this group: ${groupFiles.join(', ')}`
           : '',
         `- Blocks separated by '${ENTRY_SEPARATOR}'.`,
+        "- Blocks marked CONTENT OMITTED include path/metadata only — still commit those files.",
         "",
         "# TASK: Generate exactly one commit (subject + shell lines).",
         "",
