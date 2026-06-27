@@ -49,6 +49,15 @@ export function effectiveScope(tag, scope) {
   return s;
 }
 
+/** Migrate legacy default where colon was baked into style and separator. */
+export function migrateLegacyTagFormat(style, separator) {
+  if (style !== '{tag}:') return [style, separator];
+  if (separator === ': ' || separator === ' ' || separator === ':') {
+    return ['{tag}', ': '];
+  }
+  return [style, separator];
+}
+
 /** Append separator once — avoids `feat::` when render already ends with `:`. */
 export function appendSeparator(rendered, sep = ': ') {
   if (!sep) return rendered;
