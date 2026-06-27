@@ -10,7 +10,7 @@ export default function DiffSection({ cfg, onChange, t }) {
   const set = (key, val) => onChange({ ...cfg, diff: { ...diff, [key]: val } });
 
   return (
-    <Section title={t('diff')} desc={t('diffDesc')} defaultOpen={false}>
+    <Section title={t('diff')} desc={t('diffDesc')}>
       <Field label={t('diffOmitContent')} id="diff.omitContent" desc={t('diffOmitContentDesc')} horizontal={false}>
         <ChipInput
           values={diff.omitContent ?? []}

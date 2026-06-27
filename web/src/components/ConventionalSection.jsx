@@ -11,7 +11,7 @@ export default function ConventionalSection({ cfg, onChange, t }) {
   const setScope = (key, val) => setConv('scope', { ...scope, [key]: val });
 
   return (
-    <Section title={t('conventional')} desc={t('conventionalDesc')} defaultOpen={false}>
+    <Section title={t('conventional')} desc={t('conventionalDesc')}>
       <Field label={t('conventionalCompatible')} id="conventional.compatible" horizontal>
         <Toggle checked={conv.compatible ?? false} onChange={(v) => setConv('compatible', v)} />
       </Field>

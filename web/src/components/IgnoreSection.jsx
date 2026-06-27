@@ -116,7 +116,7 @@ export default function IgnoreSection({ cfg, onChange, t }) {
   };
 
   return (
-    <Section title={t('ignore')} desc={t('ignoreDesc')} defaultOpen={false}>
+    <Section title={t('ignore')} desc={t('ignoreDesc')}>
       <Field label={t('ignoreTagsForPaths')} id="ignore.tagsForPaths" desc={t('ignoreTagsForPathsDesc')} horizontal={false}>
         <TagsForPathsEditor
           value={ignore.tagsForPaths ?? {}}

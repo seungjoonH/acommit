@@ -93,7 +93,7 @@ export default function MessageSection({ cfg, onChange, t }) {
       </Field>
 
       <Field label={t('messageWrap')} id="message.wrap" desc={t('messageWrapDesc')} horizontal>
-        <Slider value={msg.wrap ?? 72} onChange={(v) => set('wrap', v)} min={0} max={120} step={1} unit="자" />
+        <Slider value={msg.wrap ?? 72} onChange={(v) => set('wrap', v)} min={0} max={120} step={1} unit={t('messageWrapUnit')} />
       </Field>
 
       <Field label={t('messageEmoji')} id="message.emoji.enabled" desc={t('messageEmojiDesc')} horizontal>

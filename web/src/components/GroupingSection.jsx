@@ -146,7 +146,7 @@ export default function GroupingSection({ cfg, onChange, t }) {
                   <span style={{
                     marginLeft: 'auto', fontSize: '10px', color: 'var(--accent)',
                     background: 'var(--accent-dim)', borderRadius: '4px', padding: '1px 6px',
-                  }}>선택됨</span>
+                  }}>{t('groupingSelected')}</span>
                 )}
               </div>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>

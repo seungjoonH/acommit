@@ -22,8 +22,15 @@ const TREE_STRUCTURE = {
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico']);
 
+function fmt(template, vars) {
+  return Object.entries(vars).reduce(
+    (s, [k, v]) => s.replaceAll(`{${k}}`, String(v)),
+    template,
+  );
+}
+
 // state: 'normal' | 'dimmed' | 'ignored'
-function FileRow({ path, tag, groupColor, state = 'normal', forcedTag }) {
+function FileRow({ path, tag, groupColor, state = 'normal', forcedTag, t }) {
   const name = path.split('/').pop();
   const ext  = '.' + (name.split('.').pop() ?? '');
   const isImg     = IMAGE_EXTS.has(ext.toLowerCase());
@@ -55,7 +62,7 @@ function FileRow({ path, tag, groupColor, state = 'normal', forcedTag }) {
           color: TAG_COLOR[tag] ?? '#aaa',
           border: `1px solid ${(TAG_COLOR[tag] ?? '#555')}44`,
           outline: isForced ? `1px solid ${TAG_COLOR[tag] ?? '#aaa'}` : 'none',
-        }} title={isForced ? `강제 태그: ${tag}` : undefined}>{tag}</span>
+        }} title={isForced ? `${t('previewForcedTag')}: ${tag}` : undefined}>{tag}</span>
       )}
       {groupColor && !isIgnored && !isDimmed && (
         <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: groupColor, flexShrink: 0, boxShadow: `0 0 4px ${groupColor}88` }} />
@@ -74,7 +81,7 @@ function DirRow({ name }) {
   );
 }
 
-function FolderTree({ isSingle, groupMap, mode, effectiveFiles, singlePath }) {
+function FolderTree({ isSingle, groupMap, mode, effectiveFiles, singlePath, t }) {
   const showGroups = !isSingle && mode !== 'per-file' && mode !== 'none';
 
   // Build lookup: path → effective entry (with possibly overridden tag)
@@ -96,7 +103,7 @@ function FolderTree({ isSingle, groupMap, mode, effectiveFiles, singlePath }) {
       else if (isSingle && path !== singlePath) state = 'dimmed';
       return (
         <div key={path} style={indent ? { paddingLeft: '16px' } : {}}>
-          <FileRow path={path} tag={tag} groupColor={groupColor} state={state} forcedTag={forcedTag} />
+          <FileRow path={path} tag={tag} groupColor={groupColor} state={state} forcedTag={forcedTag} t={t} />
         </div>
       );
     });
@@ -110,7 +117,7 @@ function FolderTree({ isSingle, groupMap, mode, effectiveFiles, singlePath }) {
         <Icon name="folder" size={12} style={{ color: 'var(--accent)' }} />
         <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--accent)' }}>project/</span>
         {showGroups && (
-          <span style={{ fontSize: '9px', color: 'var(--text-dim)', marginLeft: 'auto' }}>● 같은 색 = 같은 커밋</span>
+          <span style={{ fontSize: '9px', color: 'var(--text-dim)', marginLeft: 'auto' }}>{t('previewSameColorLegend')}</span>
         )}
       </div>
 
@@ -176,16 +183,16 @@ function getResultGroupColor(result, groupMap) {
 }
 
 // ── Mode description badge ────────────────────────────────────
-function ModeBadge({ mode, cfg }) {
+function ModeBadge({ mode, cfg, t }) {
   const depth     = cfg.grouping?.directoryDepth ?? 1;
   const minFiles  = cfg.grouping?.minFilesPerGroup ?? 2;
   const threshold = cfg.grouping?.threshold ?? 0.6;
   const maxGroup  = cfg.grouping?.maxGroupSize ?? 10;
 
   const hints = {
-    'by-tag':        `최소 파일 수: ${minFiles}`,
-    'by-directory':  `깊이: ${depth}단계 · 최소 파일 수: ${minFiles}`,
-    'by-similarity': `임계값: ${threshold} · 최대 크기: ${maxGroup} · 최소 파일 수: ${minFiles}`,
+    'by-tag': fmt(t('previewModeByTag'), { min: minFiles }),
+    'by-directory': fmt(t('previewModeByDirectory'), { depth, min: minFiles }),
+    'by-similarity': fmt(t('previewModeBySimilarity'), { threshold, max: maxGroup, min: minFiles }),
   }[mode];
 
   if (!hints) return null;
@@ -243,14 +250,14 @@ export default function PreviewPanel({ cfg, t }) {
       <div style={s.header}>
         <span style={s.title}>{t('preview')}</span>
         <div style={s.tabs}>
-          <button style={s.tab(isSingle)} className="seg-btn" onClick={() => setTab('single')}>단일 파일</button>
-          <button style={s.tab(!isSingle)} className="seg-btn" onClick={() => setTab('multi')}>복합 파일</button>
+          <button style={s.tab(isSingle)} className="seg-btn" onClick={() => setTab('single')}>{t('previewTabSingle')}</button>
+          <button style={s.tab(!isSingle)} className="seg-btn" onClick={() => setTab('multi')}>{t('previewTabMulti')}</button>
         </div>
-        {!isSingle && <ModeBadge mode={mode} cfg={cfg} />}
+        {!isSingle && <ModeBadge mode={mode} cfg={cfg} t={t} />}
       </div>
 
       <div style={s.body}>
-        <FolderTree isSingle={isSingle} groupMap={groupMap} mode={mode} effectiveFiles={effectiveFiles} singlePath={singlePath} />
+        <FolderTree isSingle={isSingle} groupMap={groupMap} mode={mode} effectiveFiles={effectiveFiles} singlePath={singlePath} t={t} />
 
         {results.length === 0 && (
           <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>

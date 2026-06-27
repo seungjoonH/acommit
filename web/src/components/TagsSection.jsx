@@ -17,7 +17,7 @@ const inputStyle = {
   width: '120px',
 };
 
-function TagPreviewPill({ cfg }) {
+function TagPreviewPill({ cfg, t }) {
   const example = describeTagExample(cfg);
   if (!cfg.tags?.enabled) return null;
   return (
@@ -34,7 +34,7 @@ function TagPreviewPill({ cfg }) {
       border: '1px solid var(--accent)',
       flexShrink: 0,
     }}>
-      {example}<span style={{ color: 'var(--text-muted)' }}>메시지</span>
+      {example}<span style={{ color: 'var(--text-muted)' }}>{t('tagsExampleSuffix')}</span>
     </span>
   );
 }
@@ -104,7 +104,7 @@ export default function TagsSection({ cfg, onChange, t }) {
     <Section
       title={t('tags')}
       desc={t('tagsDesc')}
-      extra={<TagPreviewPill cfg={cfg} />}
+      extra={<TagPreviewPill cfg={cfg} t={t} />}
     >
       <Field label={t('tagsEnabled')} id="tags.enabled" horizontal>
         <Toggle checked={tags.enabled ?? true} onChange={onEnabledChange} />
@@ -155,7 +155,7 @@ export default function TagsSection({ cfg, onChange, t }) {
 
             <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('tagsStylePreview')}:</span>
-              <TagPreviewPill cfg={cfg} />
+              <TagPreviewPill cfg={cfg} t={t} />
             </div>
           </Field>
 
