@@ -48,9 +48,9 @@ async function loadPrompts(cwd, cfg) {
 async function collectLocalDiff(cwd, cfg, ui, t) {
   const dc = new DiffCollector({
     cwd,
-    exclude: cfg.ignore?.files ?? [],
+    skip: cfg.diff?.skip ?? [],
+    omitContent: cfg.diff?.omitContent ?? [],
     untrackedSizeLimit: cfg.diff?.untrackedSizeLimit,
-    includeBinary: cfg.diff?.includeBinary,
   });
   const files = await dc.listFiles();
   if (!files.length) return { files, diffByFile: new Map() };
