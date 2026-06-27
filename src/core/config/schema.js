@@ -1,3 +1,7 @@
+import { createTagRenderer, deriveStyleFromCaseBracket } from '../tags/render.js';
+import { coerceMessageStyle } from '../message/styles.js';
+import { env } from '../../utils/env.js';
+
 export const DEFAULTS = {
   llm: {
     provider: "gemini",
@@ -20,10 +24,10 @@ export const DEFAULTS = {
   tags: {
     enabled: true,
     list: ["feat","fix","docs","chore","refactor","test","perf","build","ci"],
-    separator: " ",
-    render: null,              // Custom renderer placeholder
-    case: "lower",             // "lower" | "upper" | "capitalize"
-    bracket: "none",           // "none" | "square" | "round"
+    separator: ": ",
+    render: null,
+    case: "lower",
+    bracket: "none",
   },
 
   grouping: {
@@ -78,27 +82,21 @@ export function normalize(user = {}) {
   // message.lines validation
   if (!["single", "multi"].includes(out.message.lines)) out.message.lines = "single";
 
-  // Tag renderer fallback
-  if (typeof out.tags.render !== "function") {
-    const toCase = (s) => {
-      if (out.tags.case === "upper") return s.toUpperCase();
-      if (out.tags.case === "capitalize") return s.charAt(0).toUpperCase() + s.slice(1);
-      return s.toLowerCase();
-    };
-    const wrap = (s) => {
-      if (out.tags.bracket === "square") return `[${s}]`;
-      if (out.tags.bracket === "round")  return `(${s})`;
-      return s;
-    };
-    out.tags.render = (tag) => {
-      const t = wrap(toCase(tag));
-      // Colon handling when no brackets are requested
-      const needsColon = out.tags.bracket === "none";
-      const suffix = needsColon ? ":" : "";
-      return `${t}${suffix}`;
-    };
+  out.message.style = coerceMessageStyle(out.message.style, out.message.lang);
+
+  // Tag renderer — same logic as rules UI preview (tags/render.js)
+  const userTags = user?.tags ?? {};
+  const hasStyleKey = Object.prototype.hasOwnProperty.call(userTags, 'style');
+  if (!hasStyleKey) {
+    out.tags.style = deriveStyleFromCaseBracket(out.tags.case, out.tags.bracket);
+    if (out.tags.style === '{tag}' && out.tags.case === 'lower' && out.tags.bracket === 'none') {
+      out.tags.style = '{tag}:';
+    }
   }
-  if (out.tags.separator == null) out.tags.separator = " ";
+  if (typeof out.tags.render !== "function") {
+    out.tags.render = createTagRenderer(out.tags);
+  }
+  if (out.tags.separator == null) out.tags.separator = ": ";
 
   // Grouping validation
   const modes = new Set(["per-file","by-tag","by-directory","by-similarity","none"]);
@@ -120,9 +118,11 @@ export function normalize(user = {}) {
   if (!hasUserModel) {
     const provider = (out.llm?.provider || "").toLowerCase();
     if (provider === "openai") {
-      out.llm.model = process.env.OPENAI_MODEL || null;
+      out.llm.model = env('OPENAI_MODEL') || null;
+    } else if (provider === "openrouter") {
+      out.llm.model = env('OPENROUTER_MODEL') || "google/gemini-2.5-flash";
     } else if (provider === "gemini") {
-      out.llm.model = process.env.GEMINI_MODEL || DEFAULTS.llm.model;
+      out.llm.model = env('GEMINI_MODEL') || DEFAULTS.llm.model;
     }
   }
 
