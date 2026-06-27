@@ -76,7 +76,7 @@ export function validateCommitPlan(groups, cfg, meta = {}) {
         group: i + 1,
         fileCount: group.length,
         message: `${label} diff prompt is ~${pt} tokens (limit ~${promptBudget}).`,
-        hint: 'Commit in smaller batches, add paths to ignore.files, or lower diff.untrackedSizeLimit.',
+        hint: 'Commit in smaller batches, add paths to diff.omitContent or diff.skip, or lower diff.untrackedSizeLimit.',
       });
     }
   }
