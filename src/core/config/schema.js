@@ -45,11 +45,29 @@ export const DEFAULTS = {
   diff: {
     includeBinary: false,
     untrackedSizeLimit: 512_000,
+    // Still grouped + git add; only diff body omitted from LLM input
+    omitContent: [
+      "**/package-lock.json",
+      "package-lock.json",
+      "*.lock",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "**/*.min.js",
+      "**/*.map",
+    ],
+    // Fully excluded from acommit (no commit message)
+    skip: ["dist/**"],
   },
 
   ignore: {
-    files: ["package-lock.json", "*.lock", "dist/**"],
-    tagsForPaths: { "docs/**": "docs", "scripts/**": "chore" },
+    tagsForPaths: {
+      "docs/**": "docs",
+      "scripts/**": "chore",
+      "**/package-lock.json": "chore",
+      "*.lock": "chore",
+      "pnpm-lock.yaml": "chore",
+      "yarn.lock": "chore",
+    },
   },
 
   conventional: {
@@ -112,6 +130,26 @@ export function normalize(user = {}) {
 
   if (!Number.isFinite(out.diff.untrackedSizeLimit) || out.diff.untrackedSizeLimit < 0) {
     out.diff.untrackedSizeLimit = DEFAULTS.diff.untrackedSizeLimit;
+  }
+
+  if (!Array.isArray(out.diff.omitContent)) {
+    out.diff.omitContent = [...DEFAULTS.diff.omitContent];
+  }
+  if (!Array.isArray(out.diff.skip)) {
+    out.diff.skip = [...DEFAULTS.diff.skip];
+  }
+
+  // Legacy: ignore.files → omitContent (locks) or skip (dist/build output)
+  const legacyIgnore = user?.ignore?.files;
+  if (Array.isArray(legacyIgnore) && legacyIgnore.length) {
+    const skipLike = (p) => p === "dist/**" || p.startsWith("dist/") || p.includes("/dist/**");
+    for (const pattern of legacyIgnore) {
+      if (skipLike(pattern)) {
+        if (!out.diff.skip.includes(pattern)) out.diff.skip.push(pattern);
+      } else if (!out.diff.omitContent.includes(pattern)) {
+        out.diff.omitContent.push(pattern);
+      }
+    }
   }
 
   const hasUserModel = Boolean(user?.llm && Object.prototype.hasOwnProperty.call(user.llm, "model"));
