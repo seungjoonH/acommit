@@ -27,12 +27,12 @@ export const MULTI_FILES = [
 export const SINGLE_FILE = MULTI_FILES[4];
 
 export function getEffectiveFiles(cfg) {
-  const ignoreGlobs = cfg.ignore?.files ?? [];
+  const skipGlobs = cfg.diff?.skip ?? [];
   const tagsForPaths = cfg.ignore?.tagsForPaths ?? {};
   const includeBinary = cfg.diff?.includeBinary !== false;
 
   return MULTI_FILES
-    .filter(e => !matchesAnyGlob(ignoreGlobs, e.path))
+    .filter(e => !matchesAnyGlob(skipGlobs, e.path))
     .filter(e => includeBinary || !e.binary)
     .map(e => {
       const forced = resolveForcedTag(e.path, tagsForPaths);
