@@ -41,8 +41,8 @@ describe('PUT /api/rules', () => {
       message: { lang: 'en', style: 'imperative', tone: 'concise', lines: 'single', wrap: 80, emoji: { enabled: false, map: {} } },
       tags: { enabled: true, list: ['feat', 'fix'], style: '[{TAG}]', separator: ' ', case: 'upper', bracket: 'square' },
       grouping: { mode: 'by-tag', directoryDepth: 1, minFilesPerGroup: 2, threshold: 0.6, maxGroupSize: 10 },
-      diff: { includeBinary: false, untrackedSizeLimit: 512000 },
-      ignore: { files: ['*.lock'], tagsForPaths: {} },
+      diff: { includeBinary: false, untrackedSizeLimit: 512000, omitContent: ['*.lock'], skip: ['dist/**'] },
+      ignore: { tagsForPaths: {} },
       conventional: { compatible: false, scope: { enabled: false, inferFromPath: true } },
       llm: { provider: 'openai', model: 'gpt-4o-mini', maxOutputTokens: 4000, maxPromptTokens: 100000 },
     };
