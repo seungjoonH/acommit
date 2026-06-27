@@ -1,3 +1,7 @@
+import { createTagRenderer, deriveStyleFromCaseBracket, migrateLegacyTagFormat } from '../tags/render.js';
+import { coerceMessageStyle } from '../message/styles.js';
+import { env } from '../../utils/env.js';
+
 export const DEFAULTS = {
   llm: {
     provider: "gemini",
@@ -20,10 +24,10 @@ export const DEFAULTS = {
   tags: {
     enabled: true,
     list: ["feat","fix","docs","chore","refactor","test","perf","build","ci"],
-    separator: " ",
-    render: null,              // Custom renderer placeholder
-    case: "lower",             // "lower" | "upper" | "capitalize"
-    bracket: "none",           // "none" | "square" | "round"
+    separator: ": ",
+    render: null,
+    case: "lower",
+    bracket: "none",
   },
 
   grouping: {
@@ -41,11 +45,29 @@ export const DEFAULTS = {
   diff: {
     includeBinary: false,
     untrackedSizeLimit: 512_000,
+    // Still grouped + git add; only diff body omitted from LLM input
+    omitContent: [
+      "**/package-lock.json",
+      "package-lock.json",
+      "*.lock",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "**/*.min.js",
+      "**/*.map",
+    ],
+    // Fully excluded from acommit (no commit message)
+    skip: ["dist/**"],
   },
 
   ignore: {
-    files: ["package-lock.json", "*.lock", "dist/**"],
-    tagsForPaths: { "docs/**": "docs", "scripts/**": "chore" },
+    tagsForPaths: {
+      "docs/**": "docs",
+      "scripts/**": "chore",
+      "**/package-lock.json": "chore",
+      "*.lock": "chore",
+      "pnpm-lock.yaml": "chore",
+      "yarn.lock": "chore",
+    },
   },
 
   conventional: {
@@ -78,27 +100,20 @@ export function normalize(user = {}) {
   // message.lines validation
   if (!["single", "multi"].includes(out.message.lines)) out.message.lines = "single";
 
-  // Tag renderer fallback
-  if (typeof out.tags.render !== "function") {
-    const toCase = (s) => {
-      if (out.tags.case === "upper") return s.toUpperCase();
-      if (out.tags.case === "capitalize") return s.charAt(0).toUpperCase() + s.slice(1);
-      return s.toLowerCase();
-    };
-    const wrap = (s) => {
-      if (out.tags.bracket === "square") return `[${s}]`;
-      if (out.tags.bracket === "round")  return `(${s})`;
-      return s;
-    };
-    out.tags.render = (tag) => {
-      const t = wrap(toCase(tag));
-      // Colon handling when no brackets are requested
-      const needsColon = out.tags.bracket === "none";
-      const suffix = needsColon ? ":" : "";
-      return `${t}${suffix}`;
-    };
+  out.message.style = coerceMessageStyle(out.message.style, out.message.lang);
+
+  // Tag renderer — same logic as rules UI preview (tags/render.js)
+  const userTags = user?.tags ?? {};
+  const hasStyleKey = Object.prototype.hasOwnProperty.call(userTags, 'style');
+  if (!hasStyleKey) {
+    out.tags.style = deriveStyleFromCaseBracket(out.tags.case, out.tags.bracket);
   }
-  if (out.tags.separator == null) out.tags.separator = " ";
+  // Legacy: colon baked into style while separator also has colon → feat::
+  [out.tags.style, out.tags.separator] = migrateLegacyTagFormat(out.tags.style, out.tags.separator);
+  if (typeof out.tags.render !== "function") {
+    out.tags.render = createTagRenderer(out.tags);
+  }
+  if (out.tags.separator == null) out.tags.separator = ": ";
 
   // Grouping validation
   const modes = new Set(["per-file","by-tag","by-directory","by-similarity","none"]);
@@ -116,13 +131,35 @@ export function normalize(user = {}) {
     out.diff.untrackedSizeLimit = DEFAULTS.diff.untrackedSizeLimit;
   }
 
+  if (!Array.isArray(out.diff.omitContent)) {
+    out.diff.omitContent = [...DEFAULTS.diff.omitContent];
+  }
+  if (!Array.isArray(out.diff.skip)) {
+    out.diff.skip = [...DEFAULTS.diff.skip];
+  }
+
+  // Legacy: ignore.files → omitContent (locks) or skip (dist/build output)
+  const legacyIgnore = user?.ignore?.files;
+  if (Array.isArray(legacyIgnore) && legacyIgnore.length) {
+    const skipLike = (p) => p === "dist/**" || p.startsWith("dist/") || p.includes("/dist/**");
+    for (const pattern of legacyIgnore) {
+      if (skipLike(pattern)) {
+        if (!out.diff.skip.includes(pattern)) out.diff.skip.push(pattern);
+      } else if (!out.diff.omitContent.includes(pattern)) {
+        out.diff.omitContent.push(pattern);
+      }
+    }
+  }
+
   const hasUserModel = Boolean(user?.llm && Object.prototype.hasOwnProperty.call(user.llm, "model"));
   if (!hasUserModel) {
     const provider = (out.llm?.provider || "").toLowerCase();
     if (provider === "openai") {
-      out.llm.model = process.env.OPENAI_MODEL || null;
+      out.llm.model = env('OPENAI_MODEL') || null;
+    } else if (provider === "openrouter") {
+      out.llm.model = env('OPENROUTER_MODEL') || "google/gemini-2.5-flash";
     } else if (provider === "gemini") {
-      out.llm.model = process.env.GEMINI_MODEL || DEFAULTS.llm.model;
+      out.llm.model = env('GEMINI_MODEL') || DEFAULTS.llm.model;
     }
   }
 

@@ -1,4 +1,4 @@
-# .acommit.yml (English template)
+# rules.yml (English template — comments in English)
 # -----------------------------------------------------------------------------
 # acommit configuration file. Tweak values to match your team’s convention.
 # - All keys are optional; missing values fall back to defaults.
@@ -28,8 +28,8 @@ tags:
   #   "[{TAG}]"     -> "[FEAT] Message"
   #   "{tag}:"      -> "feat: Message"
   #   "{Tag}{sep}"  -> "Feat Message"
-  style: "{tag}:"
-  separator: " "        # Separator between tag and subject (can be used as {sep} in style)
+  style: "{tag}"
+  separator: ": "        # Separator between tag and subject (can be used as {sep} in style)
 
 message:
   language: "ko"        # "ko" | "en"
@@ -73,16 +73,26 @@ grouping:
 diff:
   includeBinary: false       # Include binary file contents (usually false)
   untrackedSizeLimit: 512000 # Max bytes for new file contents (truncate beyond)
-
-ignore:
-  files:                     # Glob patterns to skip when generating messages
+  # Metadata-only: still in git add/commit; LLM sees path/metadata only
+  omitContent:
+    - "**/package-lock.json"
     - "package-lock.json"
     - "*.lock"
+    - "pnpm-lock.yaml"
+    - "yarn.lock"
+    - "**/*.min.js"
+    - "**/*.map"
+  # Fully skip: acommit does not process these paths
+  skip:
     - "dist/**"
-  # Force default tag for matched paths (optional)
+
+ignore:
+  # Force default tag for matched paths (optional; unrelated to diff omit/skip)
   tagsForPaths:
     "docs/**": "docs"
     "scripts/**": "chore"
+    "**/package-lock.json": "chore"
+    "*.lock": "chore"
 
 llm:
   provider: "gemini"         # "gemini" or "openai"

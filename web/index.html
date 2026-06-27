@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>acommit rules</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3248;
+      --text: #e2e8f0;
+      --text-muted: #8892a4;
+      --text-dim: #4a5568;
+      --accent: #6c63ff;
+      --accent-hover: #7c74ff;
+      --accent-dim: rgba(108,99,255,0.15);
+      --focus-border: rgba(108,99,255,0.55);
+      --focus-ring: 0 0 0 2.5px rgba(108,99,255,0.14);
+      --green: #48bb78;
+      --green-dim: rgba(72,187,120,0.15);
+      --red: #fc8181;
+      --red-dim: rgba(252,129,129,0.12);
+      --yellow: #f6c90e;
+      --radius: 8px;
+      --radius-sm: 5px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    #root { min-height: 100vh; }
+
+    /* ── Transitions ── */
+    button { transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease; }
+    button:active:not(:disabled) { transform: scale(0.96); }
+    input[type="text"],
+    input[type="number"],
+    input:not([type]),
+    select {
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      -moz-appearance: textfield;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input:not([type]):focus,
+    select:focus {
+      outline: none;
+      border-color: var(--focus-border) !important;
+      box-shadow: var(--focus-ring);
+    }
+    .chip-input-wrap {
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .chip-input-wrap:focus-within {
+      border-color: var(--focus-border) !important;
+      box-shadow: var(--focus-ring);
+    }
+    .combobox-input:focus {
+      border-color: var(--focus-border) !important;
+      box-shadow: var(--focus-ring);
+    }
+    .combobox-input--open:focus {
+      border-color: var(--accent) !important;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* Section header */
+    .section-header:hover { background: rgba(255,255,255,0.025); }
+
+    /* Section body accordion */
+    .section-body {
+      overflow: hidden;
+      transition: max-height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease;
+    }
+
+    /* Mode card */
+    .mode-card { transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease; }
+    .mode-card:hover:not(.mode-card--active) {
+      border-color: rgba(108,99,255,0.4) !important;
+      background: rgba(108,99,255,0.05) !important;
+    }
+
+    /* Chip delete button */
+    .chip-del:hover { color: var(--red) !important; }
+
+    /* Header save/reset buttons */
+    .header-btn-reset:hover { background: rgba(255,255,255,0.05) !important; border-color: var(--text-muted) !important; }
+    .header-btn-save:hover:not(:disabled) { background: var(--accent-hover) !important; box-shadow: 0 2px 8px rgba(108,99,255,0.35); }
+
+    /* Range slider */
+    .range-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--surface);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+      cursor: pointer;
+      margin-top: -4px;
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+    .range-slider::-webkit-slider-thumb:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 0 4px var(--accent-dim);
+    }
+    .range-slider::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 3px;
+    }
+    .range-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--surface);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+      cursor: pointer;
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+    .range-slider::-moz-range-thumb:hover {
+      background: var(--accent-hover);
+    }
+    .range-slider::-moz-range-track {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+    }
+    .range-slider::-moz-range-progress {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--accent);
+    }
+
+    /* Toggle slider */
+    .toggle-track { transition: background 0.18s ease; }
+    .toggle-thumb { transition: left 0.18s cubic-bezier(0.4,0,0.2,1); }
+
+    /* Inline code in descriptions */
+    .desc-code {
+      font-family: monospace;
+      font-size: 11px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 0 4px;
+      border-radius: 3px;
+      color: var(--text);
+    }
+
+    /* Segmented button */
+    .seg-btn:hover:not(.seg-btn--active) { color: var(--text) !important; background: rgba(255,255,255,0.06) !important; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+    * { scrollbar-width: thin; scrollbar-color: var(--surface2) transparent; }
+
+    /* HR */
+    hr { border: none; border-top: 1px solid var(--border); margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>
