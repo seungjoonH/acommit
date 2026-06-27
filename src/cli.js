@@ -16,7 +16,7 @@ export async function main(argv = process.argv) {
 
   program
     .name("acommit")
-    .description("AI-powered commit message automation CLI")
+    .description("AI-assisted commit workflow automation CLI")
     .version(pkg.version, '-v, --version', 'Print the current version.');
 
   program
@@ -37,8 +37,9 @@ export async function main(argv = process.argv) {
 
   program
     .command('model')
-    .description('Select which LLM provider (gemini|openai) to use.')
-    .option('-p, --provider <name>', 'Set the provider without the picker.')
+    .description('Select LLM route, vendor, and model (direct API or OpenRouter).')
+    .option('-p, --provider <name>', 'Runtime provider: gemini | openai | openrouter')
+    .option('-m, --model <id>', 'Model id (e.g. gemini-2.5-flash or google/gemini-2.5-flash)')
     .action(async (opts) => {
       const mod = await import('./commands/model.js');
       const fn = mod.modelCommand || mod.default;
@@ -47,12 +48,54 @@ export async function main(argv = process.argv) {
 
   program
     .command("init")
-    .description("Create .acommit/rules.yml from a template and update .gitignore.")
-    .option("--lang <code>", "Template language (en|ko)", "en")
+    .description("Interactive setup: rules.yml options and .gitignore.")
+    .option("--lang <code>", "UI + rules.yml comment locale for non-interactive init (ko|en)", "ko")
+    .option("--configure", "Non-interactive: create rules.yml with defaults")
+    .option("--skip-rules", "Non-interactive: skip rules.yml (use built-in defaults)")
+    .option("--gitignore <mode>", "Non-interactive: none | results | all")
     .action(async (opts) => {
       const mod = await import('./commands/init.js');
       const fn = mod.initConfig || mod.init || mod.default;
-      await fn({ lang: opts.lang, cwd: process.cwd() });
+      await fn({
+        lang: opts.lang,
+        cwd: process.cwd(),
+        configure: opts.configure || undefined,
+        skipRules: opts.skipRules || undefined,
+        gitignore: opts.gitignore,
+        nonInteractive: Boolean(opts.configure || opts.skipRules || opts.gitignore),
+      });
+    });
+
+  program
+    .command('rules')
+    .description('Open the rules editor UI in your browser.')
+    .option('-p, --port <number>', 'Local server port', '3000')
+    .option('--no-open', 'Do not open a browser tab automatically.')
+    .action(async (opts) => {
+      const mod = await import('./commands/rules.js');
+      const fn = mod.rulesCommand || mod.default;
+      await fn({ port: Number(opts.port), open: opts.open });
+    });
+
+  program
+    .command('locale')
+    .description('View or change the UI language (ko | en).')
+    .argument('[lang]', 'Set locale directly without interactive picker (ko | en)')
+    .action(async (lang) => {
+      const mod = await import('./commands/locale.js');
+      const fn = mod.localeCommand || mod.default;
+      await fn({ set: lang });
+    });
+
+  program
+    .command('result')
+    .description('Open the commit result viewer in your browser.')
+    .option('-p, --port <number>', 'Local server port', '3000')
+    .option('--no-open', 'Do not open a browser tab automatically.')
+    .action(async (opts) => {
+      const mod = await import('./commands/result.js');
+      const fn = mod.resultCommand || mod.default;
+      await fn({ port: Number(opts.port), open: opts.open });
     });
 
   program

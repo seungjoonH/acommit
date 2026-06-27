@@ -1,15 +1,18 @@
-import "dotenv/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { env } from '../../utils/env.js';
 import logger from '../../utils/logger.js';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 export default function createGemini({ model: moduleModel } = {}) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const envModel = process.env.GEMINI_MODEL;
+  const apiKey = env('GEMINI_API_KEY');
+  const envModel = env('GEMINI_MODEL');
 
   if (!apiKey) {
-    logger.error('GEMINI_API_KEY not set. Please add it to your .env or environment.');
+    logger.error(
+      'GEMINI_API_KEY not set. Add GEMINI_API_KEY or ACOMMIT_GEMINI_API_KEY to your .env file.',
+      { exit: false },
+    );
     return { gen: async () => ({ text: '', raw: null }) };
   }
 
@@ -21,10 +24,16 @@ export default function createGemini({ model: moduleModel } = {}) {
 
   async function gen(prompt, opts = {}) {
     const modelKey = pickModel(opts.model);
-    // Try multiple invocation shapes to be resilient across SDK versions
     const payloadText = String(prompt || '');
+    const systemText = String(opts.system || '').trim();
     const tried = [];
-    // Helper to standardize returned text
+
+    const modelConfig = { model: modelKey };
+    if (systemText) modelConfig.systemInstruction = systemText;
+    if (Number.isFinite(opts.maxTokens)) {
+      modelConfig.generationConfig = { maxOutputTokens: opts.maxTokens };
+    }
+
     const extractText = (res) => {
       if (!res) return '';
       // raw string
@@ -66,11 +75,9 @@ export default function createGemini({ model: moduleModel } = {}) {
       try { return JSON.stringify(res); } catch (e) { return String(res); }
     };
 
-      // Try the GenerativeModel.generateContent API with shapes the SDK expects.
       try {
-        const model = genAI.getGenerativeModel ? genAI.getGenerativeModel({ model: modelKey }) : null;
+        const model = genAI.getGenerativeModel ? genAI.getGenerativeModel(modelConfig) : null;
         if (model && typeof model.generateContent === 'function') {
-          // 1) Pass the prompt as a plain string (the SDK will format it)
           try {
             tried.push('generateContent:string');
             const r1 = await model.generateContent(payloadText);
@@ -78,20 +85,11 @@ export default function createGemini({ model: moduleModel } = {}) {
             if (text1) return { text: text1, raw: r1 };
           } catch (e) { /* ignore and try next shape */ }
 
-          // 2) Explicit contents array
           try {
             tried.push('generateContent:contentsArray');
-            const r2 = await model.generateContent({ contents: [payloadText] });
+            const r2 = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: payloadText }] }] });
             const text2 = extractText(r2?.response || r2);
             if (text2) return { text: text2, raw: r2 };
-          } catch (e) { /* ignore */ }
-
-          // 3) Use formatted chat history (array of content) - as fallback
-          try {
-            tried.push('generateContent:contentsFormatted');
-            const r3 = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: payloadText }] }] });
-            const text3 = extractText(r3?.response || r3);
-            if (text3) return { text: text3, raw: r3 };
           } catch (e) { /* ignore */ }
         }
       } catch (e) {
@@ -111,7 +109,6 @@ export default function createGemini({ model: moduleModel } = {}) {
     // If we reach here, none of the invocation styles returned text; return an error
     const errMsg = `No valid response from Gemini SDK (tried: ${tried.join(', ')})`;
     const suggestion = "Ensure @google/generative-ai is installed and up-to-date, and that GEMINI_MODEL is set. Try: npm install @google/generative-ai && export GEMINI_MODEL=gemini-2.5-flash";
-    logger.error(`Gemini request failed: ${errMsg} — ${suggestion}`, { exit: false });
     return { text: '', raw: { error: errMsg, suggestion } };
   }
 

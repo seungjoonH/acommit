@@ -11,6 +11,8 @@ export const LABELS = {
   newFileHeader: "(NEW FILE ENTIRE CONTENTS)",
   deleted: "(FILE DELETED)",
   truncated: (len, limit) => `/* truncated: ${len} bytes (limit ${limit}) */`,
+  contentOmitted: "(CONTENT OMITTED — diff body not sent to model)",
+  metadataStatus: (parts) => `(metadata: ${parts.join(" | ")})`,
 };
 
 export const CHARS_PER_TOKEN = 3.6;

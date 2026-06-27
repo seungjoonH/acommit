@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import '../src/utils/env.js';
 import { main } from "../src/cli.js";
 
 main().catch(e => {

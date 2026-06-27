@@ -2,15 +2,22 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { createGit } from "../../adapters/git.js";
 import { existsFile, isBinary } from "../../utils/file.js";
+import { matchesAnyGlob } from "../ignore/match.js";
 import { LABELS } from "../constants.js";
 
 export class DiffCollector {
   #repoChecked = false;
   #isRepo = false;
 
-  constructor({ cwd = process.cwd(), exclude = [], untrackedSizeLimit = 512_000 } = {}) {
+  constructor({
+    cwd = process.cwd(),
+    skip = [],
+    omitContent = [],
+    untrackedSizeLimit = 512_000,
+  } = {}) {
     this.cwd = cwd;
-    this.exclude = exclude;
+    this.skip = skip;
+    this.omitContent = omitContent;
     this.untrackedSizeLimit = untrackedSizeLimit;
     this.git = createGit(cwd);
   }
@@ -23,20 +30,36 @@ export class DiffCollector {
   }
 
   #parseLine(line) {
-    const x = line[0], y = line[1];
-    let pathPart = line.slice(3);
+    const x = line[0] ?? " ";
+    const y = line[1] ?? " ";
+    let pathPart;
+    if (line.length >= 3 && line[2] === " ") {
+      pathPart = line.slice(3);
+    } else if (line.length >= 2 && line[1] === " ") {
+      pathPart = line.slice(2).trimStart();
+    } else {
+      pathPart = line.slice(3);
+    }
     const arrow = " -> ";
     const idx = pathPart.indexOf(arrow);
     if (idx !== -1) pathPart = pathPart.slice(idx + arrow.length);
     return { x, y, path: pathPart.trim() };
   }
 
+  #isSkipped(filePath) {
+    return matchesAnyGlob(this.skip, filePath);
+  }
+
+  #omitContent(filePath) {
+    return matchesAnyGlob(this.omitContent, filePath);
+  }
+
   async #listDiffFiles() {
     const porcelainRaw = await this.git.statusPorcelain();
     const porcelainPaths = (porcelainRaw || "")
       .split("\n")
-      .map(l => l.trim()).filter(Boolean)
-      .map(l => this.#parseLine(l).path);
+      .filter((l) => l.trim().length > 0)
+      .map((l) => this.#parseLine(l).path);
 
     const [work, staged, untracked] = await Promise.all([
       this.git._run("diff", "--name-only").catch(() => ""),
@@ -46,11 +69,11 @@ export class DiffCollector {
     const nameOnlyPaths = [work, staged, untracked]
       .join("\n")
       .split("\n")
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
 
     const all = Array.from(new Set([...porcelainPaths, ...nameOnlyPaths]))
-      .filter(p => !this.exclude.includes(p));
+      .filter((p) => !this.#isSkipped(p));
 
     if (process.env.ACOMMIT_DEBUG) {
       console.error("[acommit][debug] porcelain:", porcelainPaths);
@@ -77,6 +100,7 @@ export class DiffCollector {
   #header(filePath) {
     return [LABELS.sep, `${LABELS.filename}${filePath}`, "", LABELS.differences];
   }
+
   #close(lines) {
     return [...lines, ""].join("\n");
   }
@@ -84,6 +108,24 @@ export class DiffCollector {
   #renderBinary({ tracked, deleted, filePath }) {
     const lines = this.#header(filePath);
     lines.push(deleted ? LABELS.blobDeleted : (tracked ? LABELS.blobUpdated : LABELS.blobNew), "");
+    return this.#close(lines);
+  }
+
+  #renderOmitted(filePath, meta) {
+    const lines = this.#header(filePath);
+    if (meta.deleted) {
+      lines.push(LABELS.deleted);
+    } else {
+      const parts = [];
+      if (!meta.tracked) parts.push("untracked");
+      else parts.push("modified");
+      if (meta.binary) parts.push("binary");
+      const diffChars = (meta.dw?.length ?? 0) + (meta.ds?.length ?? 0);
+      if (diffChars > 0) parts.push(`diff-size=${diffChars} chars`);
+      lines.push(LABELS.contentOmitted);
+      if (parts.length) lines.push(LABELS.metadataStatus(parts));
+    }
+    lines.push("");
     return this.#close(lines);
   }
 
@@ -117,6 +159,7 @@ export class DiffCollector {
   async render(filePath) {
     const meta = await this.#getMeta(filePath);
     if (!meta.exists && !meta.deleted) return "";
+    if (this.#omitContent(filePath)) return this.#renderOmitted(filePath, meta);
     if (meta.binary) return this.#renderBinary({ ...meta, filePath });
     if (meta.tracked || meta.deleted) return this.#renderFromDiffs(filePath, meta);
     return this.#renderUntracked(filePath);
@@ -140,7 +183,6 @@ export class DiffCollector {
     }
   }
 
-  // Progress helper method
   async listFiles() {
     if (!(await this.#ensureRepo())) return [];
     return this.#listDiffFiles();

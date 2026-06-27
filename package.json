@@ -1,56 +1,42 @@
 {
   "name": "acommit",
-  "version": "0.2.0",
-  "description": "AI-powered commit message automation CLI",
+  "version": "0.3.0",
+  "description": "AI-assisted git commit message CLI",
   "bin": {
     "acommit": "./bin/acommit.js"
   },
-  "scripts": {
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
-    "start": "node bin/acommit.js"
-  },
   "files": [
-    "bin",
-    "src",
-    "samples",
-    "README.md",
-    "README.en.md",
-    "README.ko.md",
-    "CHANGELOG.md",
-    "LICENSE"
+    "bin/",
+    "src/",
+    "dist/web/",
+    "samples/",
+    ".env.sample",
+    "README.md"
   ],
-  "keywords": [
-    "ai",
-    "commit",
-    "git",
-    "cli",
-    "automation",
-    "llm",
-    "gemini",
-    "openai",
-    "conventional-commits"
-  ],
-  "author": "SeungjoonH",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/seungjoonH/acommit.git"
+  "scripts": {
+    "pretest": "npm run build:web",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
+    "demo:screenshot": "node examples/setup-screenshot-demo.mjs",
+    "start": "node bin/acommit.js",
+    "build:web": "npm run build --prefix web",
+    "prepublishOnly": "npm run build:web"
   },
-  "homepage": "https://github.com/seungjoonH/acommit",
+  "devDependencies": {
+    "jest": "^29.6.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "type": "module",
-  "engines": {
-    "node": ">=18"
-  },
   "dependencies": {
+    "@clack/prompts": "^0.10.1",
     "@google/generative-ai": "^0.24.1",
     "chalk": "^5.6.0",
     "cli-progress": "^3.12.0",
     "commander": "^14.0.0",
     "dotenv": "^17.2.3",
     "openai": "^6.8.1",
-    "yaml": "^2.8.1"
-  },
-  "devDependencies": {
-    "jest": "^29.6.1"
+    "picocolors": "^1.1.1",
+    "yaml": "^2.9.0"
   }
 }

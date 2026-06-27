@@ -1,4 +1,4 @@
-# .acommit.yml (Korean template)
+# rules.yml (Korean template — 주석·설명이 한국어)
 # -----------------------------------------------------------------------------
 # acommit 설정 파일입니다. 팀 컨벤션에 맞게 값들을 수정하세요.
 # - 모든 키는 선택 사항이며, 누락 시 기본값으로 대체됩니다.
@@ -27,8 +27,8 @@ tags:
   # 예) "[{TAG}]"  → "[FEAT] 메시지"
   #     "{tag}:"   → "feat: 메시지"
   #     "{Tag}{sep}" → "Feat 메시지"
-  style: "{tag}:"
-  separator: " "        # 태그와 본문 사이 구분자. style 안에서 {sep}로도 사용 가능
+  style: "{tag}"
+  separator: ": "        # 태그와 본문 사이 구분자. style 안에서 {sep}로도 사용 가능
 
 message:
   language: "ko"        # "ko" | "en"
@@ -71,16 +71,26 @@ grouping:
 diff:
   includeBinary: false      # 바이너리 파일 본문 포함 여부(보통 false 권장)
   untrackedSizeLimit: 512000 # 신규 파일 본문 최대 바이트(초과 시 잘라냄)
-
-ignore:
-  files:                    # 커밋 메시지 생성을 제외할 경로 패턴(글롭)
+  # 본문 생략(metadata-only): 커밋·git add에는 포함, LLM에는 경로/메타만
+  omitContent:
+    - "**/package-lock.json"
     - "package-lock.json"
     - "*.lock"
+    - "pnpm-lock.yaml"
+    - "yarn.lock"
+    - "**/*.min.js"
+    - "**/*.map"
+  # 완전 제외: acommit이 처리하지 않음
+  skip:
     - "dist/**"
-  # 특정 경로 패턴에 기본 태그를 강제 지정(선택)
+
+ignore:
+  # 경로 패턴에 기본 태그 강제 지정 (diff 제외와 무관)
   tagsForPaths:
     "docs/**": "docs"
     "scripts/**": "chore"
+    "**/package-lock.json": "chore"
+    "*.lock": "chore"
 
 llm:
   provider: "gemini"        # "gemini" 또는 "openai"
