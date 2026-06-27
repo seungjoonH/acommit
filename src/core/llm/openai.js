@@ -1,20 +1,21 @@
-import "dotenv/config";
 import OpenAI from 'openai';
+import { env } from '../../utils/env.js';
 import logger from '../../utils/logger.js';
 
 const DEFAULT_MODEL = 'gpt-4o';
 
 export default function createOpenAIClient({ model: moduleModel } = {}) {
-  if (!process.env.OPENAI_API_KEY) {
-    const suggestion = "Set your OpenAI credentials: export OPENAI_API_KEY=\"<key>\"; export OPENAI_MODEL=\"gpt-4o\"";
-    logger.error(`OPENAI_API_KEY is not set. Add it to your .env or environment. ${suggestion}`, { exit: false });
+  const apiKey = env('OPENAI_API_KEY');
+  if (!apiKey) {
+    const suggestion = 'Add OPENAI_API_KEY or ACOMMIT_OPENAI_API_KEY to your .env file.';
+    logger.error(`OPENAI_API_KEY is not set. ${suggestion}`, { exit: false });
     return { gen: async () => ({ text: '', raw: null }) };
   }
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const client = new OpenAI({ apiKey });
 
   function pickModel(optsModel) {
-    return optsModel || moduleModel || process.env.OPENAI_MODEL || DEFAULT_MODEL;
+    return optsModel || moduleModel || env('OPENAI_MODEL') || DEFAULT_MODEL;
   }
 
   async function gen(prompt, opts = {}) {

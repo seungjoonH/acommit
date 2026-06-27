@@ -14,6 +14,11 @@ export async function createLLMClient(provider, opts = {}) {
         const createOpenAI = mod.default || mod.createOpenAI;
         return createOpenAI(opts);
       }
+      case 'openrouter': {
+        const mod = await import('./openrouter.js');
+        const createOpenRouter = mod.default || mod.createOpenRouterClient;
+        return createOpenRouter(opts);
+      }
       default:
           logger.error(`unknown llm provider: ${provider}`, { exit: false });
           return null;
