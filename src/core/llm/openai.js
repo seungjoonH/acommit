@@ -21,8 +21,7 @@ export default function createOpenAIClient({ model: moduleModel } = {}) {
   async function gen(prompt, opts = {}) {
     const m = pickModel(opts.model);
     if (!m) {
-      logger.error('OpenAI model selection failed; aborting request.', { exit: false });
-      return { text: '', raw: null };
+      return { text: '', raw: { error: 'OpenAI model selection failed; aborting request.' } };
     }
     const payload = {
       model: m,
@@ -38,7 +37,6 @@ export default function createOpenAIClient({ model: moduleModel } = {}) {
       const text = res.choices?.[0]?.message?.content ?? '';
       return { text, raw: res };
     } catch (err) {
-      logger.error(`OpenAI request failed: ${err?.message || String(err)}`, { exit: false });
       return { text: '', raw: { error: err?.message || String(err) } };
     }
   }

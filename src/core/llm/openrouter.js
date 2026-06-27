@@ -29,8 +29,7 @@ export default function createOpenRouterClient({ model: moduleModel } = {}) {
   async function gen(prompt, opts = {}) {
     const m = pickModel(opts.model);
     if (!m) {
-      logger.error('OpenRouter model selection failed; aborting request.', { exit: false });
-      return { text: '', raw: null };
+      return { text: '', raw: { error: 'OpenRouter model selection failed; aborting request.' } };
     }
 
     const payload = {
@@ -43,15 +42,12 @@ export default function createOpenRouterClient({ model: moduleModel } = {}) {
     };
     if (opts.json) payload.response_format = { type: 'json_object' };
     if (Number.isFinite(opts.temperature)) payload.temperature = opts.temperature;
-    if (opts.json) payload.response_format = { type: 'json_object' };
-    if (Number.isFinite(opts.temperature)) payload.temperature = opts.temperature;
 
     try {
       const res = await client.chat.completions.create(payload);
       const text = res.choices?.[0]?.message?.content ?? '';
       return { text, raw: res };
     } catch (err) {
-      logger.error(`OpenRouter request failed: ${err?.message || String(err)}`, { exit: false });
       return { text: '', raw: { error: err?.message || String(err) } };
     }
   }

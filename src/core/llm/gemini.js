@@ -109,7 +109,6 @@ export default function createGemini({ model: moduleModel } = {}) {
     // If we reach here, none of the invocation styles returned text; return an error
     const errMsg = `No valid response from Gemini SDK (tried: ${tried.join(', ')})`;
     const suggestion = "Ensure @google/generative-ai is installed and up-to-date, and that GEMINI_MODEL is set. Try: npm install @google/generative-ai && export GEMINI_MODEL=gemini-2.5-flash";
-    logger.error(`Gemini request failed: ${errMsg} — ${suggestion}`, { exit: false });
     return { text: '', raw: { error: errMsg, suggestion } };
   }
 
