@@ -1,4 +1,4 @@
-import { createTagRenderer, deriveStyleFromCaseBracket } from '../tags/render.js';
+import { createTagRenderer, deriveStyleFromCaseBracket, migrateLegacyTagFormat } from '../tags/render.js';
 import { coerceMessageStyle } from '../message/styles.js';
 import { env } from '../../utils/env.js';
 
@@ -107,10 +107,9 @@ export function normalize(user = {}) {
   const hasStyleKey = Object.prototype.hasOwnProperty.call(userTags, 'style');
   if (!hasStyleKey) {
     out.tags.style = deriveStyleFromCaseBracket(out.tags.case, out.tags.bracket);
-    if (out.tags.style === '{tag}' && out.tags.case === 'lower' && out.tags.bracket === 'none') {
-      out.tags.style = '{tag}:';
-    }
   }
+  // Legacy: colon baked into style while separator also has colon → feat::
+  [out.tags.style, out.tags.separator] = migrateLegacyTagFormat(out.tags.style, out.tags.separator);
   if (typeof out.tags.render !== "function") {
     out.tags.render = createTagRenderer(out.tags);
   }
