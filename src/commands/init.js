@@ -184,7 +184,7 @@ async function askRulesOptions(tui, t) {
     tags: {
       enabled: tagsEnabled === 'yes',
       list: DEFAULTS.tags.list,
-      style: '{tag}:',
+      style: '{tag}',
       separator: ': ',
       case: 'lower',
       bracket: 'none',

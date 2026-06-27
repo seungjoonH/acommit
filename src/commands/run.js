@@ -155,14 +155,16 @@ export async function run() {
 
     ui.startSpinner(t.cli.generating(i + 1, plans.length));
     const out = await gen(user, { system, maxTokens: outputCap });
-    ui.stopSpinner(t.cli.done);
-
     const text = (out?.text ?? '').trim();
     if (!text) {
+      ui.stopSpinner(t.cli.failed);
       const errMsg = out?.raw?.error || out?.raw || 'Unknown LLM error';
-      logger.error(`[acommit] ${t.cli.groupFailed(i + 1, String(errMsg))}`, { exit: false });
+      const suggestion = out?.raw?.suggestion;
+      const detail = suggestion ? `${errMsg} — ${suggestion}` : String(errMsg);
+      logger.error(t.cli.groupFailed(i + 1, detail), { exit: false });
       return;
     }
+    ui.stopSpinner(t.cli.done);
 
     const parsed = parseCommitText(text, group, cfg);
     commits.push(parsed);
