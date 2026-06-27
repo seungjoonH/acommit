@@ -27,7 +27,7 @@ tags:
   # 예) "[{TAG}]"  → "[FEAT] 메시지"
   #     "{tag}:"   → "feat: 메시지"
   #     "{Tag}{sep}" → "Feat 메시지"
-  style: "{tag}:"
+  style: "{tag}"
   separator: ": "        # 태그와 본문 사이 구분자. style 안에서 {sep}로도 사용 가능
 
 message:

@@ -28,7 +28,7 @@ tags:
   #   "[{TAG}]"     -> "[FEAT] Message"
   #   "{tag}:"      -> "feat: Message"
   #   "{Tag}{sep}"  -> "Feat Message"
-  style: "{tag}:"
+  style: "{tag}"
   separator: ": "        # Separator between tag and subject (can be used as {sep} in style)
 
 message:
