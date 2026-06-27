@@ -2,6 +2,8 @@
 
 A CLI tool that analyzes git diffs and automatically generates **consistent commit messages** based on your team's conventions.
 
+<br />
+
 ## 1. Installation
 
 ### 1) Install
@@ -48,6 +50,7 @@ acommit commit
 
 Results are saved to `.acommit/results/commits/`.
 
+<br />
 
 ## 2. Available Commands
 
@@ -141,7 +144,12 @@ Creates the `.acommit/rules.yml` config file and updates `.gitignore` to exclude
 acommit rules [options]
 ```
 
-Opens the **rules editor UI** in your browser to edit `.acommit/rules.yml` visually.
+Opens the **rules editor** in your browser — a visual editor for `.acommit/rules.yml`.
+
+- **Left panel** — seven sections: Tags, Message style, Conventional Commits, Grouping, LLM, Path tags, and Diff. Each maps directly to a `rules.yml` key (see §3).
+- **Right panel** — **Commit Preview**: a sample file tree and commit messages that update as you change settings (grouping mode, tags, diff rules, and more).
+- **Save** writes to `.acommit/rules.yml` (previous version saved as `.acommit/rules.yml.bak`).
+- **UI language** follows `.acommit/locale` (`acommit locale en` \| `ko`), separate from `message.lang` (the language of generated commit text).
 
 #### Options
 
@@ -149,6 +157,22 @@ Opens the **rules editor UI** in your browser to edit `.acommit/rules.yml` visua
 | :--- | :--- | :--- |
 | `-p, --port <number>` | Local server port (default `3000`). | optional |
 | `--no-open` | Do not open a browser tab automatically. | optional |
+
+#### Rules editor sections
+
+| GUI section | `rules.yml` key | Screenshot |
+| :--- | :--- | :--- |
+| Tags | `tags` | [below §3.1](#1-tags) |
+| Message style | `message` | [below §3.2](#2-message) |
+| Grouping | `grouping` | [below §3.3](#3-grouping) |
+| Diff | `diff` | [below §3.4](#4-diff) |
+| Path tags | `ignore.tagsForPaths` | [below §3.5](#5-ignore) |
+| LLM | `llm` | [below §3.6](#6-llm) |
+| Conventional Commits | `conventional` | [below §3.7](#7-conventional) |
+
+**Commit Preview** (right panel) — sample output follows `message.lang` and grouping settings:
+
+![Commit Preview — single file (English message)](./assets/readme/en/rules-preview.png)
 
 
 ### `acommit result`
@@ -158,6 +182,8 @@ acommit result [options]
 ```
 
 Opens the **commit result viewer** in your browser. Browse the latest session's generated commits, edit subjects, and run them as actual `git commit` commands.
+
+![Commit result viewer — file tree, batch format, and per-commit actions](./assets/readme/en/result.png)
 
 #### Options
 
@@ -190,13 +216,19 @@ acommit --help
 
 Displays **global options and available commands** for the `acommit` CLI.
 
+<br />
 
 ## 3. `.acommit/rules.yml` Configuration Guide
 
 The `.acommit/rules.yml` file defines the **behavior** and **commit message style** of `acommit`.
 
+> [!TIP]
+> Run `acommit rules` to edit every section below in the browser. Screenshots show the English UI; field names match the YAML keys.
+
 
 ### 1. `tags`
+
+![Tags settings in the rules editor](./assets/readme/en/rules-tags.png)
 
 | Key | Description | Type | Default |
 | :--- | :--- | :--- | :--- |
@@ -218,6 +250,8 @@ If `style` is not set, it is derived automatically from `case` + `bracket`. Defa
 
 
 ### 2. `message`
+
+![Message style settings in the rules editor](./assets/readme/en/rules-message.png)
 
 | Key | Description | Type | Default |
 | :--- | :--- | :--- | :--- |
@@ -241,6 +275,8 @@ If `style` is not set, it is derived automatically from `case` + `bracket`. Defa
 
 ### 3. `grouping`
 
+![Grouping settings in the rules editor](./assets/readme/en/rules-grouping.png)
+
 | Key | Description | Type | Default |
 | :--- | :--- | :--- | :--- |
 | `mode` | How files are grouped into commits | `string` | `"per-file"` |
@@ -259,6 +295,8 @@ If `style` is not set, it is derived automatically from `case` + `bracket`. Defa
 
 ### 4. `diff`
 
+![Diff settings in the rules editor](./assets/readme/en/rules-diff.png)
+
 | Key | Description | Type | Default |
 | :--- | :--- | :--- | :--- |
 | `includeBinary` | Include binary file contents in the diff | `boolean` | `false` |
@@ -267,14 +305,33 @@ If `style` is not set, it is derived automatically from `case` + `bracket`. Defa
 | `skip` | Glob patterns fully excluded from acommit (no commit message generated) | `array` | `[dist/**]` |
 
 
-### 5. `ignore`
+### 5. `ignore` (path tags)
+
+Shown as **Path tags** in the GUI. YAML key: `ignore.tagsForPaths`.
+
+![Path tag mappings in the rules editor](./assets/readme/en/rules-path-tags.png)
 
 | Key | Description | Type | Default |
 | :--- | :--- | :--- | :--- |
-| `tagsForPaths` | Force a specific tag for files matching a glob pattern | `map` | `{ "docs/**": "docs", "scripts/**": "chore" }` |
+| `tagsForPaths` | Force a tag for files matching a glob pattern | `map` | see below |
+
+**Default mappings:**
+
+```yaml
+ignore:
+  tagsForPaths:
+    "docs/**": "docs"
+    "scripts/**": "chore"
+    "**/package-lock.json": "chore"
+    "*.lock": "chore"
+    "pnpm-lock.yaml": "chore"
+    "yarn.lock": "chore"
+```
 
 
 ### 6. `llm`
+
+![LLM settings in the rules editor](./assets/readme/en/rules-llm.png)
 
 | Key | Description | Type | Default |
 | :--- | :--- | :--- | :--- |
@@ -288,6 +345,8 @@ If `style` is not set, it is derived automatically from `case` + `bracket`. Defa
 
 
 ### 7. `conventional`
+
+![Conventional Commits settings in the rules editor](./assets/readme/en/rules-conventional.png)
 
 | Key | Description | Type | Default |
 | :--- | :--- | :--- | :--- |
@@ -305,6 +364,7 @@ If `style` is not set, it is derived automatically from `case` + `bracket`. Defa
 > [!TIP]
 > Commit `rules.yml` to your repo so every team member shares the same conventions.
 
+<br />
 
 ## 4. Environment Variables & API Keys
 
@@ -339,12 +399,14 @@ ACOMMIT_OPENROUTER_API_KEY=
     2.  Save your key as `ACOMMIT_OPENROUTER_API_KEY`.
     3.  Set `llm.provider: openrouter` and `llm.model: google/gemini-2.5-flash` (or any supported model) in `rules.yml`.
 
+<br />
 
 ## 5. License
 
 MIT License © 2025 — SeungjoonH.
 Free to use, modify, and distribute as long as attribution is preserved.
 
+<br />
 
 ## 6. Open Source
 
