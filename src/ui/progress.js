@@ -1,5 +1,6 @@
 import { SingleBar, Presets } from "cli-progress";
 import pc from "picocolors";
+import { setOutputPauseHook } from "../utils/logger.js";
 
 const FRAMES = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"];
 
@@ -9,11 +10,19 @@ export class ProgressUI {
   #spinIndex = 0;
   #spinLabel = "";
 
-  #withSpinnerPause(renderFn) {
-    if (typeof renderFn !== 'function') return;
+  constructor() {
+    setOutputPauseHook(() => this.#clearSpinnerLine());
+  }
+
+  #clearSpinnerLine() {
     if (this.#spinTimer && process.stdout.isTTY) {
       process.stdout.write('\r\x1b[K');
     }
+  }
+
+  #withSpinnerPause(renderFn) {
+    if (typeof renderFn !== 'function') return;
+    this.#clearSpinnerLine();
     renderFn();
   }
 
