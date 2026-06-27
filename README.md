@@ -1,6 +1,6 @@
 # acommit — AI 기반 커밋 자동화 CLI
 
-Git diff 분석 결과를 바탕으로 commit 메시지, Issue 및 PR 문서를 **일관된 형태** 로 생성하는 협업 도구 입니다.
+Git diff 분석 결과를 바탕으로 commit 메시지를 **일관된 형태**로 생성하는 협업 도구입니다.
 
 ## 1. 설치 방법
 
@@ -49,17 +49,33 @@ acommit commit
 
 결과는 `.acommit/results/commits/` 에 저장됩니다.
 
+### 5) 규칙 편집 UI (선택)
+
+```bash
+acommit rules         # 브라우저에서 .acommit/rules.yml 편집
+```
+
+
+## 저장소 구성
+
+| 영역 | GitHub | npm | 설명 |
+| --- | :---: | :---: | --- |
+| `bin/`, `src/`, `samples/` | O | O | 사용자 CLI (`commit`, `init`, `model`, `prompt`, `rules`) |
+| `web/` | O | X | Rules UI 소스 (Vite). npm에는 `dist/web/` 빌드 결과만 포함 |
+| `dist/web/` | X | O | Rules UI 빌드 산출물 (`prepublishOnly`에서 생성) |
+| `__tests__/`, `test/` | O | X | 배포 코드용 테스트 |
+| `eval/`, `experiments/`, `docs/` | X | X | **로컬 실험 전용** — gitignore, GitHub·npm 모두 제외 |
+
 
 ## 2. 사용 가능한 명령어
 
 | 명령어 | 설명 | 예시 |
 | --- | --- | --- |
 | `acommit commit` | 현재 변경사항 (git diff) 를 토대로 commit 요약 초안을 작성합니다. | `acommit commit` |
-| `acommit pr [<number>]` | 번호가 있으면 해당 PR diff, 없으면 현재 변경사항으로 PR 초안을 작성합니다. | `acommit pr 36` |
-| `acommit issue <number>` | 연결된 PR에 대한 이슈 요약 및 PR 설명을 초안 작성합니다. | `acommit issue 1` |
 | `acommit prompt [--save]` | 보조 프롬프트(일회성 또는 영구적)를 추가합니다. | `acommit prompt -m "Highlight refactoring"` |
 | `acommit model` | 사용할 LLM 백엔드를 선택합니다. | `acommit model -p gemini` |
 | `acommit init` | `.acommit/rules.yml`을 생성하고 `.gitignore`를 업데이트합니다. | `acommit init --lang en` |
+| `acommit rules` | 브라우저에서 `.acommit/rules.yml`을 편집하는 UI를 엽니다. | `acommit rules` |
 | `acommit --help` | 전역 옵션과 함께 CLI 도움말을 표시합니다. | `acommit --help` |
 
 ### `acommit commit`
@@ -69,47 +85,6 @@ acommit commit
 ```
 
 현재 변경사항 (`git diff`)을 분석하여 **커밋 요약 초안**을 작성합니다.
-
-
-### `acommit pr`
-
-```sh
-acommit pr             # 현재 변경사항 기반 PR 초안 작성
-acommit pr <number>    # GitHub PR diff 기반 PR 초안 작성
-```
-
-로컬 변경사항 또는 지정된 **GitHub PR의 diff**를 분석하여 **PR 설명 초안**을 작성합니다.
-
-#### 옵션
-
-| 옵션 | 설명 | 유형 |
-| :--- | :--- | :--- |
-| `<number>` | 초안을 작성할 **GitHub PR 번호**를 지정합니다. | optional |
-
-#### 결과
-
-  * **번호 미지정**: 현재 변경사항을 기반으로 PR 문서 초안을 생성하며, 결과는 `.acommit/results/prs/new/<timestamp>.md`에 저장됩니다.
-  * **번호 지정**: 해당 PR 의 변경사항을 기반으로 PR 문서 초안을 생성하며, 결과는 `.acommit/results/prs/<number>/`에 저장됩니다.
-
-
-### `acommit issue`
-
-```sh
-acommit issue <number>
-```
-
-지정된 **이슈 번호**를 해결한 PR을 조회하고, 저장소의 템플릿을 따르는 **이슈 요약**과 첫 번째 연결된 PR에 대한 **PR 초안**을 (`resolves #<issue>` 참조 포함) 생성합니다.
-
-#### 옵션
-
-| 옵션 | 설명 | 유형 |
-| :--- | :--- | :--- |
-| `<number>` | **이슈 번호** | required |
-
-#### 결과
-
-  * 해당 이슈와 연결된 PR 의 변경사항을 기반으로 이슈 문서 초안을 생성하며, 결과는 `.acommit/results/issues/<number>/<timestamp>.md`에 저장됩니다.
-  * 해당 이슈와 연결된 PR 의 변경사항을 기반으로 PR 문서 초안을 생성하며, 결과는 `.acommit/results/prs/<number>/<timestamp>.md`에 저장됩니다.
 
 
 ### `acommit prompt`
@@ -186,7 +161,7 @@ acommit --help
 
 ## `.acommit/rules.yml` 설정 가이드
 
-`.acommit/rules.yml` 파일은 `acommit` CLI의 **동작 방식**과 **생성되는 커밋 메시지/PR의 스타일**을 정의하는 핵심 설정 파일입니다. 팀의 **커밋 컨벤션**과 **LLM 사용 환경**에 맞게 각 설정을 조정할 수 있습니다.
+`.acommit/rules.yml` 파일은 `acommit` CLI의 **동작 방식**과 **생성되는 커밋 메시지의 스타일**을 정의하는 핵심 설정 파일입니다. 팀의 **커밋 컨벤션**과 **LLM 사용 환경**에 맞게 각 설정을 조정할 수 있습니다.
 
 
 ### 1. `tags` (커밋 태그 설정)
