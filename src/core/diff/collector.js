@@ -23,8 +23,18 @@ export class DiffCollector {
   }
 
   #parseLine(line) {
-    const x = line[0], y = line[1];
-    let pathPart = line.slice(3);
+    const x = line[0] ?? " ";
+    const y = line[1] ?? " ";
+    // Porcelain: XY<space>path. If line[2] is not space (e.g. trim removed index column),
+    // recover path from column 2 — fixes `.env.sample` → `env.sample`, `README.md` → `EADME.md`.
+    let pathPart;
+    if (line.length >= 3 && line[2] === " ") {
+      pathPart = line.slice(3);
+    } else if (line.length >= 2 && line[1] === " ") {
+      pathPart = line.slice(2).trimStart();
+    } else {
+      pathPart = line.slice(3);
+    }
     const arrow = " -> ";
     const idx = pathPart.indexOf(arrow);
     if (idx !== -1) pathPart = pathPart.slice(idx + arrow.length);
@@ -35,8 +45,8 @@ export class DiffCollector {
     const porcelainRaw = await this.git.statusPorcelain();
     const porcelainPaths = (porcelainRaw || "")
       .split("\n")
-      .map(l => l.trim()).filter(Boolean)
-      .map(l => this.#parseLine(l).path);
+      .filter((l) => l.trim().length > 0)
+      .map((l) => this.#parseLine(l).path);
 
     const [work, staged, untracked] = await Promise.all([
       this.git._run("diff", "--name-only").catch(() => ""),
