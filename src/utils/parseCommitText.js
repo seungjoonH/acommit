@@ -1,7 +1,4 @@
-// Escape shell glob metacharacters in a file path so `git add` is safe.
-function escapePath(p) {
-  return p.replace(/[\[\]()]/g, '\\$&');
-}
+import { escapePath, buildCommitShellLines } from './commitShell.js';
 
 /**
  * Parse a single-group LLM response into structured commit data.
@@ -40,7 +37,7 @@ export function parseCommitText(raw, groupFiles = [], cfg = {}) {
     ?? (subject ? `git commit -m "${subject.replace(/"/g, '\\"')}"` : null);
 
   const shell = groupFiles.length && commitLine
-    ? [`git add ${groupFiles.map(escapePath).join(' ')}`, commitLine]
+    ? buildCommitShellLines(groupFiles, commitLine)
     : shellLines;
 
   const subject = msgLines[0] ?? '';
