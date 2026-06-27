@@ -20,7 +20,6 @@ dist/
 web/node_modules/
 
 # Internal — local experiments only (not GitHub, not npm)
-eval/
 experiments/
 examples/screenshot-demo/
 docs/
