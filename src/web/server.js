@@ -9,6 +9,7 @@ import { normalize, DEFAULTS } from '../core/config/schema.js';
 import { MESSAGE_STYLES_BY_LANG } from '../core/message/styles.js';
 import { readLocale } from '../core/locale.js';
 import { catalogForApi } from '../core/llm/catalog.js';
+import { isAllowedExecuteCommand } from '../utils/commitShell.js';
 
 const execAsync = promisify(execCb);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,7 +34,7 @@ function toSerializable(cfg) {
 function schemaMetadata() {
   return {
     tags: {
-      styleTemplates: ['{tag}:', '[{TAG}]', '{Tag}:', '{tag}({scope}):', '[{TAG}]{sep}'],
+      styleTemplates: ['{tag}', '[{TAG}]', '{Tag}', '{tag}({scope})', '[{TAG}]{sep}'],
       cases: ['lower', 'upper', 'capitalize'],
       brackets: ['none', 'square', 'round'],
       defaultList: DEFAULTS.tags.list,
@@ -131,13 +132,11 @@ async function getSession(cwd, id) {
 
 // ── Execute API ───────────────────────────────────────────────
 
-const SAFE_CMD_RE = /^git (add|commit|status)\b/;
-
 async function executeCommands(commands, cwd) {
   const results = [];
   for (const command of commands) {
-    if (!SAFE_CMD_RE.test(command.trim())) {
-      results.push({ command, stdout: '', stderr: 'Blocked: only git add/commit allowed', exitCode: 1, ok: false });
+    if (!isAllowedExecuteCommand(command)) {
+      results.push({ command, stdout: '', stderr: 'Blocked: only git restore --staged . / add / commit allowed', exitCode: 1, ok: false });
       return { results, aborted: true };
     }
     try {
