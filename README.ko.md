@@ -2,6 +2,8 @@
 
 Git diff를 분석하여 팀 컨벤션에 맞는 **일관된 커밋 메시지**를 자동 생성하는 CLI 도구입니다.
 
+<br />
+
 ## 1. 설치 방법
 
 ### 1) 설치
@@ -48,6 +50,7 @@ acommit commit
 
 결과는 `.acommit/results/commits/` 에 저장됩니다.
 
+<br />
 
 ## 2. 사용 가능한 명령어
 
@@ -143,12 +146,33 @@ acommit rules [options]
 
 브라우저에서 `.acommit/rules.yml`을 편집하는 **규칙 편집 UI**를 엽니다.
 
+- **좌측 패널** — Tags, 메시지 스타일, Conventional Commits, 그룹화, LLM, **경로별 태그**, Diff 7개 섹션. 각각 `rules.yml` 키와 1:1 대응합니다 (§3 참고).
+- **우측 패널** — **커밋 미리보기**: 샘플 파일 트리와 커밋 메시지가 설정 변경에 따라 실시간으로 바뀝니다.
+- **저장** 시 `.acommit/rules.yml`에 반영됩니다 (이전 버전은 `.acommit/rules.yml.bak`).
+- **UI 언어**는 `.acommit/locale` 기준 (`acommit locale ko` \| `en`). 커밋 메시지 언어(`message.lang`)와는 별개입니다.
+
 #### 옵션
 
 | 옵션 | 설명 | 유형 |
 | :--- | :--- | :--- |
 | `-p, --port <number>` | 로컬 서버 포트 (기본값 `3000`) | optional |
 | `--no-open` | 브라우저 탭을 자동으로 열지 않습니다. | optional |
+
+#### 규칙 편집기 섹션
+
+| GUI 섹션 | `rules.yml` 키 | 스크린샷 |
+| :--- | :--- | :--- |
+| 태그 | `tags` | [아래 §3.1](#1-tags-커밋-태그-설정) |
+| 메시지 스타일 | `message` | [아래 §3.2](#2-message-메시지-설정) |
+| 그룹화 | `grouping` | [아래 §3.3](#3-grouping-커밋-그룹화) |
+| Diff | `diff` | [아래 §3.4](#4-diff-diff-처리) |
+| 경로별 태그 | `ignore.tagsForPaths` | [아래 §3.5](#5-ignore-경로별-태그) |
+| LLM | `llm` | [아래 §3.6](#6-llm-llm-설정) |
+| Conventional Commits | `conventional` | [아래 §3.7](#7-conventional-conventional-commits) |
+
+**커밋 미리보기** (우측 패널) — `message.lang`·그룹화 설정에 따라 샘플 출력이 바뀝니다:
+
+![커밋 미리보기 — 단일 파일 (한국어 메시지)](./assets/readme/ko/rules-preview.png)
 
 
 ### `acommit result`
@@ -158,6 +182,8 @@ acommit result [options]
 ```
 
 가장 최근 `acommit commit` 실행 결과를 브라우저 UI로 확인하고, 각 커밋을 실제 `git commit`으로 실행할 수 있습니다.
+
+![커밋 결과 뷰어 — 파일 구조, 일괄 포맷, 커밋별 실행](./assets/readme/ko/result.png)
 
 #### 옵션
 
@@ -190,13 +216,19 @@ acommit --help
 
 `acommit` CLI의 **전역 옵션과 사용 가능한 명령어 목록**을 표시합니다.
 
+<br />
 
 ## 3. `.acommit/rules.yml` 설정 가이드
 
 `.acommit/rules.yml` 파일은 `acommit` CLI의 **동작 방식**과 **커밋 메시지 스타일**을 정의합니다.
 
+> [!TIP]
+> `acommit rules`로 아래 모든 항목을 브라우저에서 편집할 수 있습니다. 스크린샷은 한국어 UI이며, 필드명은 YAML 키와 동일합니다.
+
 
 ### 1. `tags` (커밋 태그 설정)
+
+![규칙 편집기 — 태그 설정](./assets/readme/ko/rules-tags.png)
 
 | 키 | 설명 | 유형 | 기본값 |
 | :--- | :--- | :--- | :--- |
@@ -218,6 +250,8 @@ acommit --help
 
 
 ### 2. `message` (메시지 설정)
+
+![규칙 편집기 — 메시지 스타일](./assets/readme/ko/rules-message.png)
 
 | 키 | 설명 | 유형 | 기본값 |
 | :--- | :--- | :--- | :--- |
@@ -241,6 +275,8 @@ acommit --help
 
 ### 3. `grouping` (커밋 그룹화)
 
+![규칙 편집기 — 그룹화](./assets/readme/ko/rules-grouping.png)
+
 | 키 | 설명 | 유형 | 기본값 |
 | :--- | :--- | :--- | :--- |
 | `mode` | 파일 묶음 방식 | `string` | `"per-file"` |
@@ -259,6 +295,8 @@ acommit --help
 
 ### 4. `diff` (Diff 처리)
 
+![규칙 편집기 — Diff](./assets/readme/ko/rules-diff.png)
+
 | 키 | 설명 | 유형 | 기본값 |
 | :--- | :--- | :--- | :--- |
 | `includeBinary` | 바이너리 파일 내용을 diff에 포함할지 여부 | `boolean` | `false` |
@@ -267,14 +305,33 @@ acommit --help
 | `skip` | acommit에서 완전히 제외할 파일 패턴 (커밋 메시지 생성 안 함) | `array` | `[dist/**]` |
 
 
-### 5. `ignore` (태그 강제 지정)
+### 5. `ignore` (경로별 태그)
+
+GUI에서는 **경로별 태그**로 표시됩니다. YAML 키는 `ignore.tagsForPaths`입니다.
+
+![규칙 편집기 — 경로별 태그](./assets/readme/ko/rules-path-tags.png)
 
 | 키 | 설명 | 유형 | 기본값 |
 | :--- | :--- | :--- | :--- |
-| `tagsForPaths` | 특정 경로 패턴에 태그를 강제 지정 | `map` | `{ "docs/**": "docs", "scripts/**": "chore" }` |
+| `tagsForPaths` | 경로 패턴에 맞는 파일에 태그 강제 지정 | `map` | 아래 참조 |
+
+**기본 매핑 예시:**
+
+```yaml
+ignore:
+  tagsForPaths:
+    "docs/**": "docs"
+    "scripts/**": "chore"
+    "**/package-lock.json": "chore"
+    "*.lock": "chore"
+    "pnpm-lock.yaml": "chore"
+    "yarn.lock": "chore"
+```
 
 
 ### 6. `llm` (LLM 설정)
+
+![규칙 편집기 — LLM](./assets/readme/ko/rules-llm.png)
 
 | 키 | 설명 | 유형 | 기본값 |
 | :--- | :--- | :--- | :--- |
@@ -288,6 +345,8 @@ acommit --help
 
 
 ### 7. `conventional` (Conventional Commits)
+
+![규칙 편집기 — Conventional Commits](./assets/readme/ko/rules-conventional.png)
 
 | 키 | 설명 | 유형 | 기본값 |
 | :--- | :--- | :--- | :--- |
@@ -305,6 +364,7 @@ acommit --help
 > [!TIP]
 > 팀원들과 `rules.yml`을 공유하면 동일한 커밋 컨벤션을 유지할 수 있습니다.
 
+<br />
 
 ## 4. 환경 변수 및 API 키
 
@@ -339,12 +399,14 @@ ACOMMIT_OPENROUTER_API_KEY=
     2.  키를 `ACOMMIT_OPENROUTER_API_KEY`에 저장합니다.
     3.  `rules.yml`에서 `llm.provider: openrouter`, `llm.model: google/gemini-2.5-flash` 등으로 설정합니다.
 
+<br />
 
 ## 5. 라이선스
 
 MIT 라이선스 © 2025 — SeungjoonH.
 출처가 보존되는 한 자유롭게 사용, 수정 및 배포할 수 있습니다.
 
+<br />
 
 ## 6. 오픈소스 협업
 
