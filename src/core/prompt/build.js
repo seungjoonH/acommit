@@ -1,9 +1,7 @@
 // src/core/prompt/build.js
-import { CHARS_PER_TOKEN } from "../constants.js";
+import { CHARS_PER_TOKEN, ENTRY_SEPARATOR } from "../constants.js";
+import { describeTagExample } from "../tags/render.js";
 
-/* ──────────────────────────────
- * Grouping descriptor
- * ────────────────────────────── */
 function describeGrouping(cfg) {
   const g = cfg.grouping ?? {};
   const mode = g.mode ?? "per-file";
@@ -22,7 +20,7 @@ function describeGrouping(cfg) {
 
   if (mode === "by-directory") {
     lines.push(
-      `- directoryDepth: ${depth} (group by first ${depth} path segments)`,
+      `- directoryDepth: ${depth} (group by first ${depth} path segment(s))`,
       `- If a directory bucket has < minFilesPerGroup (${minFiles}), fall back to per-file commits.`
     );
   } else if (mode === "by-tag") {
@@ -34,14 +32,14 @@ function describeGrouping(cfg) {
     );
   } else if (mode === "by-similarity") {
     lines.push(
-      `- Cluster files by semantic/path similarity (threshold=${g.threshold}, maxGroupSize=${g.maxGroupSize}).`,
-      "- Similarity considers file paths, filenames, and diff text tokens.",
-      "- Keep groups compact; if borderline, prefer splitting to avoid mixed intent."
+      `- Cluster files by path/filename similarity (threshold=${g.threshold}, maxGroupSize=${g.maxGroupSize}).`,
+      `- If a cluster has < minFilesPerGroup (${minFiles}), fall back to per-file commits.`,
+      "- Prefer splitting when intent differs."
     );
   } else if (mode === "per-file") {
     lines.push("- Create exactly one commit per file.");
   } else if (mode === "none") {
-    lines.push("- Do not create grouped commits; produce messages only (shell block still per-file).");
+    lines.push("- Produce commit messages only; still include per-file shell commands (git add + git commit).");
   }
 
   lines.push(
@@ -52,23 +50,60 @@ function describeGrouping(cfg) {
   return lines.join("\n");
 }
 
-/* ──────────────────────────────
- * Tag style descriptor
- * ────────────────────────────── */
 function describeTagStyle(cfg) {
   if (!cfg?.tags?.enabled) return "Tag prefix: DISABLED";
-  const tag = (cfg.tags.list?.[0] ?? "feat");
-  const rendered = typeof cfg.tags.render === "function"
-    ? cfg.tags.render(tag)
-    : `${tag}:`;
-  const sep = cfg.tags.separator ?? " ";
   const allowed = (cfg.tags.list || []).join(", ");
-  return `Tag prefix: ENABLED; allowed=[${allowed}]; example="${rendered}${sep}"`;
+  const example = describeTagExample(cfg);
+  return `Tag prefix: ENABLED; allowed=[${allowed}]; example="${example}"`;
 }
 
-/* ──────────────────────────────
- * Token helpers
- * ────────────────────────────── */
+function describeConventionalRules(cfg) {
+  const conv = cfg.conventional ?? {};
+  if (!conv.compatible) return "Conventional Commits: OFF";
+  const scope = conv.scope ?? {};
+  const lines = ["Conventional Commits: ON — use type(scope) subject format when scope is enabled."];
+  if (scope.enabled) {
+    lines.push(
+      "Scope: ON — include (scope) between type and separator, e.g. feat(auth): message",
+      scope.inferFromPath !== false
+        ? "- Infer scope from path: strip leading src/, use first directory segment. Omit scope when it equals the tag."
+        : "- Scope must be chosen from diff context."
+    );
+  } else {
+    lines.push("Scope: OFF — use type only, e.g. feat: message");
+  }
+  return lines.join("\n");
+}
+
+function describePathTagRules(cfg) {
+  const entries = Object.entries(cfg.ignore?.tagsForPaths ?? {});
+  if (!entries.length) return "";
+  return [
+    "Path → tag overrides (apply to every grouping mode):",
+    ...entries.map(([pattern, tag]) => `- "${pattern}" => tag "${tag}"`),
+  ].join("\n");
+}
+
+function describeIgnoreRules(cfg) {
+  const files = cfg.ignore?.files ?? [];
+  if (!files.length) return "";
+  return [
+    "Ignored paths (excluded from diff input):",
+    ...files.map((p) => `- ${p}`),
+  ].join("\n");
+}
+
+function describeEmojiRules(cfg) {
+  const emoji = cfg.message?.emoji;
+  if (!emoji?.enabled) return "Emoji prefix: OFF";
+  const map = emoji.map ?? {};
+  const samples = Object.entries(map).slice(0, 5).map(([k, v]) => `${k}→${v}`).join(", ");
+  return [
+    "Emoji prefix: ON — prepend configured emoji before the tag prefix.",
+    samples ? `Custom map: ${samples}` : "Use default emoji per tag when map entry missing.",
+  ].join("\n");
+}
+
 function estimateTokens(str) {
   return Math.ceil((str?.length || 0) / CHARS_PER_TOKEN);
 }
@@ -79,11 +114,9 @@ function truncateByTokens(str, maxTokens) {
   if (str.length <= maxChars) return str;
 
   const cut = str.slice(0, maxChars);
-  // Safe anchors: separators, FILENAME headers, legacy '----'
   const anchors = [
-    "\n--------------------------------------------",
+    `\n${ENTRY_SEPARATOR}`,
     "\n[FILENAME]:",
-    "\n----",
   ];
   const lastPos = anchors
     .map(a => cut.lastIndexOf(a))
@@ -93,50 +126,76 @@ function truncateByTokens(str, maxTokens) {
   return `${safe}\n\n/* truncated for token budget */`;
 }
 
-/* ──────────────────────────────
- * Main
- * ────────────────────────────── */
-function buildSystemPrompt(config, purpose) {
-  const base = [
+function describeMessageStyle(config) {
+  const lang = config.message?.lang ?? 'ko';
+  const style = config.message?.style ?? 'verb';
+  if (lang === 'ko') {
+    if (style === 'declarative') {
+      return 'Sentence style: Korean declarative (~함), e.g. "초기 설정을 추가함". Do NOT use English.';
+    }
+    return 'Sentence style: Korean terse verb/noun, e.g. "초기 설정 추가". Do NOT use English.';
+  }
+  if (style === 'past') {
+    return 'Sentence style: English past tense, e.g. "Added initial setup".';
+  }
+  return 'Sentence style: English imperative, e.g. "Add initial setup".';
+}
+
+function buildSystemPrompt(config, { perGroup = false } = {}) {
+  if (perGroup) {
+    const example = describeTagExample(config);
+    const tagPart = config.tags?.enabled === false ? '' : example;
+    const sampleSubject = config.message?.lang === 'ko'
+      ? `${tagPart}초기 설정 추가`
+      : `${tagPart}Add initial setup`;
+
+    const sections = [
+      "You are a precise commit message generator.",
+      "Generate exactly ONE commit for the file group in the user message.",
+      `Language: ${config.message.lang} — subject MUST be in this language.`,
+      describeMessageStyle(config),
+      `Tone: ${config.message.tone}`,
+      `Lines: ${config.message.lines}`,
+      `Subject width: ≤ ${config.message.wrap} characters when possible.`,
+      describeTagStyle(config),
+      describeConventionalRules(config),
+      describeEmojiRules(config),
+      describePathTagRules(config),
+      "",
+      "Output format (strict — no markdown, no headings):",
+      config.message.lines === 'multi'
+        ? "Line 1: subject"
+        : `Line 1: subject only (example: ${sampleSubject})`,
+      ...(config.message.lines === 'multi'
+        ? ["Lines 2-5: 2-4 concise bullet points"]
+        : []),
+      "Then exactly:",
+      "git add <every file path on ONE line, space-separated>",
+      `git commit -m "<subject>"`,
+      "",
+      "Rules:",
+      "- Do not invent changes; only use provided diffs.",
+      "- Do NOT use ### or markdown.",
+      "- Do NOT emit one git add per file.",
+      "- No commentary before or after the block.",
+    ].filter(Boolean);
+
+    return sections.join("\n");
+  }
+
+  const sections = [
+    "You are a precise commit message generator.",
     `Language: ${config.message.lang}`,
+    describeMessageStyle(config),
     `Tone: ${config.message.tone}`,
     `Sentence style: ${config.message.style}`,
     `Lines: ${config.message.lines}`,
-    `Subject guide width (hint): ~${config.message.wrap} chars`,
-  ];
-
-  if (purpose === "issue") {
-    return [
-      "You are a seasoned software PM drafting high-quality GitHub issues.",
-      ...base,
-      "Goals:",
-      "- Summarize the root cause and impact using only the provided diff context.",
-      "- Capture reproduction steps, expected vs. actual behavior, and acceptance criteria when applicable.",
-      "- Mirror the structure of the supplied issue template exactly; replace all placeholder text with concrete content.",
-      "- Maintain the phrasing style of the example sentences in the template (e.g., “~ 구현 해야 한다”, “~ 구현 한다”, “~ 구현”) exactly as shown.",
-      "- Keep the tone professional and easy to skim.",
-    ].join("\n");
-  }
-
-  if (purpose === "pr") {
-    return [
-      "You are an experienced engineer preparing a pull request description.",
-      ...base,
-      "Goals:",
-      "- Summarize what changed and why, referencing the diff content only.",
-      "- Call out testing performed, risks, and review needs.",
-      "- Mirror the structure of the supplied PR template exactly; replace all placeholder text with concrete content.",
-      "- Maintain the phrasing style of the example sentences in the template (e.g., “~ 구현하였다”, “~ 구현함”, “~ 구현”) exactly as shown.",
-      "- Keep the tone professional and easy to skim.",
-    ].join("\n");
-  }
-
-  // commit (default)
-  return [
-    "You are a precise commit message generator.",
-    ...base,
+    `Subject width: keep subject ≤ ${config.message.wrap} characters when possible.`,
     describeTagStyle(config),
-    `Conventional: ${config.conventional?.compatible ? "ON" : "OFF"}; scope: ${config.conventional?.scope?.enabled ? "ON" : "OFF"}`,
+    describeConventionalRules(config),
+    describeEmojiRules(config),
+    describePathTagRules(config),
+    describeIgnoreRules(config),
     "",
     describeGrouping(config),
     "",
@@ -150,49 +209,18 @@ function buildSystemPrompt(config, purpose) {
     "The commands must be copy-paste ready and grouped logically by the messages you produce.",
     "The order of groups in the shell block MUST match the message groups.",
     "The shell block MUST include only 'git add …' and 'git commit -m …' lines.",
-    "Do NOT include any other commands, comments, or annotations in that block."
-  ].join("\n");
+    "Do NOT include any other commands, comments, or annotations in that block.",
+  ].filter(Boolean);
+
+  return sections.join("\n");
 }
 
-function buildUserHeader(purpose, { linkedIssueId } = {}) {
-  const intro = [
+function buildUserHeader() {
+  return [
     "# INPUT: Git-style changes (per file blocks)",
-    "- Blocks start with '----' and include [FILENAME], [DIFFERENCES].",
+    `- Blocks are separated by '${ENTRY_SEPARATOR}' and include [FILENAME], [DIFFERENCES].`,
     "- Some contents may be truncated for length.",
     "",
-  ];
-
-  if (purpose === "issue") {
-    return [
-      ...intro,
-      "# TASK:",
-      "- Draft a GitHub issue body using the supplied template.",
-      "- Highlight motivation, scope, reproduction steps (if relevant), and acceptance criteria grounded in the diff.",
-      "- Prefer bullet lists for steps/criteria; keep paragraphs short.",
-      "- Do NOT mention git commands or commit summaries.",
-      "",
-    ].join("\n");
-  }
-
-  if (purpose === "pr") {
-    const linkedLine = linkedIssueId
-      ? `- Inside the Linked Issues section, include a bullet like 'resolves #${linkedIssueId}'.`
-      : null;
-    return [
-      ...intro,
-      "# TASK:",
-      "- Draft a PR description using the supplied template.",
-      "- Summarize major code paths touched, tests performed, risks, and review requests.",
-      "- Ground every statement in the provided diff; do not speculate.",
-      linkedLine ? linkedLine : "- If the template has a Linked Issues section, ensure it references the correct issue IDs.",
-      "- Do NOT include git commands or commit templates.",
-      "",
-    ].join("\n");
-  }
-
-  // commit default
-  return [
-    ...intro,
     "# TASK:",
     "- Generate commit message(s) that follow the rules above.",
     "- Prefer grouping logically as implied by the diffs and the grouping policy.",
@@ -202,33 +230,34 @@ function buildUserHeader(purpose, { linkedIssueId } = {}) {
   ].join("\n");
 }
 
-export function buildPromptFromDiff(config, diffText, extraPrompts = [], options = {}) {
-  const {
-    purpose = "commit",
-    template = "",
-    linkedIssueId = null,
-  } = options;
+export function buildPromptFromDiff(config, diffText, extraPrompts = [], opts = {}) {
+  const { perGroup = false, groupFiles = [] } = opts;
   const budget = Math.floor(config.llm.maxPromptTokens * 0.85);
   const headerReserve = 512;
   const diffBudget = Math.max(256, budget - headerReserve);
 
-  const sys = buildSystemPrompt(config, purpose);
-  const userHeader = buildUserHeader(purpose, { linkedIssueId });
+  const sys = buildSystemPrompt(config, { perGroup });
+  const userHeader = perGroup
+    ? [
+        "# INPUT: Git-style changes for ONE commit group",
+        groupFiles.length
+          ? `# Files in this group: ${groupFiles.join(', ')}`
+          : '',
+        `- Blocks separated by '${ENTRY_SEPARATOR}'.`,
+        "",
+        "# TASK: Generate exactly one commit (subject + shell lines).",
+        "",
+      ].filter(Boolean).join("\n")
+    : buildUserHeader();
   const trimmedDiff = truncateByTokens(diffText, diffBudget);
 
-  // extraPrompts: array of { source: 'persistent'|'one-time', text: '...' }
   const promptsSection = (Array.isArray(extraPrompts) && extraPrompts.length)
     ? ["# ADDITIONAL PROMPTS (user-provided):", ...extraPrompts.map(p => `- ${p.text}`), ""]
-    : [];
-
-  const templateSection = template
-    ? ["# TEMPLATE TO FILL:", template.trim(), ""]
     : [];
 
   const sections = [
     userHeader,
     promptsSection.join('\n'),
-    templateSection.join('\n'),
     trimmedDiff,
   ].filter(Boolean);
 
