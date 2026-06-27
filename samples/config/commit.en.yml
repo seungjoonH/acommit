@@ -1,0 +1,98 @@
+# .acommit.yml (English template)
+# -----------------------------------------------------------------------------
+# acommit configuration file. Tweak values to match your team’s convention.
+# - All keys are optional; missing values fall back to defaults.
+# - Use comments generously to communicate intent.
+# -----------------------------------------------------------------------------
+
+tags:
+  enabled: true          # Whether to use tags (true/false)
+  list:                  # Allowed tags (agree within the team)
+    - feat
+    - fix
+    - docs
+    - chore
+    - refactor
+    - test
+    - perf
+    - build
+    - ci
+  # style: tag output template
+  # Available placeholders:
+  #   {tag}   : lowercase (e.g., feat)
+  #   {TAG}   : UPPERCASE (e.g., FEAT)
+  #   {Tag}   : Capitalized (e.g., Feat)
+  #   {scope} : included when present (requires conventional.scope.enabled=true)
+  #   {sep}   : separator value
+  # Examples:
+  #   "[{TAG}]"     -> "[FEAT] Message"
+  #   "{tag}:"      -> "feat: Message"
+  #   "{Tag}{sep}"  -> "Feat Message"
+  style: "{tag}:"
+  separator: " "        # Separator between tag and subject (can be used as {sep} in style)
+
+message:
+  language: "ko"        # "ko" | "en"
+  # style: sentence style
+  # - verb        : terse noun/verb style ("Add init config", "Update settings")
+  # - declarative : Korean "~함" style ("초기 설정을 추가함")
+  # - imperative  : English imperative ("Add initial setup")
+  # - past        : English past ("Added initial setup")
+  style: "verb"
+  tone: "concise"       # "concise" | "detailed"
+  lines: "single"       # "single" (subject only) | "multi" (subject + body)
+  wrap: 72              # Subject length guide (no hard wrap)
+  emoji:
+    enabled: false
+    # Emoji mapping per tag (applies only if enabled=true)
+    map:
+      feat: "✨"
+      fix: "🐛"
+      docs: "📝"
+      chore: "🔧"
+
+grouping:
+  # Commit grouping modes:
+  # - per-file       : one commit per file
+  # - by-tag         : bucket by tag (feat/fix/docs/…)
+  # - by-directory   : bucket by directory
+  # - by-similarity  : bucket by semantic/path/token similarity
+  # - none           : no grouping (messages only)
+  mode: "by-similarity"
+
+  # Only for by-directory
+  directoryDepth: 1         # Applies only when mode=by-directory
+
+  # For by-tag / by-directory
+  minFilesPerGroup: 2       # Buckets smaller than this fall back to per-file
+
+  # Only for by-similarity
+  threshold: 0.60           # 0–1 (higher = stricter grouping)
+  maxGroupSize: 10          # Max files per similarity group
+
+diff:
+  includeBinary: false       # Include binary file contents (usually false)
+  untrackedSizeLimit: 512000 # Max bytes for new file contents (truncate beyond)
+
+ignore:
+  files:                     # Glob patterns to skip when generating messages
+    - "package-lock.json"
+    - "*.lock"
+    - "dist/**"
+  # Force default tag for matched paths (optional)
+  tagsForPaths:
+    "docs/**": "docs"
+    "scripts/**": "chore"
+
+llm:
+  provider: "gemini"         # "gemini" or "openai"
+  maxPromptTokens: 200000    # Safety cap for prompt tokens
+  maxOutputTokens: 4000      # Safety cap for output tokens
+
+conventional:
+  compatible: false          # If true, follow Conventional Commits
+  scope:
+    enabled: false           # Whether to print scope
+    inferFromPath: true      # Infer scope from path (e.g., src/helper -> helper)
+    # When enabled=true and style uses {scope}, example:
+    #   style: "{tag}({scope}):" -> "feat(helper): Message"
