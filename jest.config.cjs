@@ -4,8 +4,7 @@ module.exports = {
   verbose: true,
   testPathIgnorePatterns: [
     '/node_modules/',
-    '<rootDir>/eval/',
-    '<rootDir>/__tests__/commit-suites.test.js',
+    '<rootDir>/experiments/',
   ],
   moduleNameMapper: {
     '^openai$': '<rootDir>/__mocks__/openai.mock.js',
