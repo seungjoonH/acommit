@@ -1,4 +1,4 @@
-# .acommit.yml (Korean template)
+# rules.yml (Korean template — 주석·설명이 한국어)
 # -----------------------------------------------------------------------------
 # acommit 설정 파일입니다. 팀 컨벤션에 맞게 값들을 수정하세요.
 # - 모든 키는 선택 사항이며, 누락 시 기본값으로 대체됩니다.
@@ -28,7 +28,7 @@ tags:
   #     "{tag}:"   → "feat: 메시지"
   #     "{Tag}{sep}" → "Feat 메시지"
   style: "{tag}:"
-  separator: " "        # 태그와 본문 사이 구분자. style 안에서 {sep}로도 사용 가능
+  separator: ": "        # 태그와 본문 사이 구분자. style 안에서 {sep}로도 사용 가능
 
 message:
   language: "ko"        # "ko" | "en"

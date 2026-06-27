@@ -1,4 +1,4 @@
-# .acommit.yml (English template)
+# rules.yml (English template — comments in English)
 # -----------------------------------------------------------------------------
 # acommit configuration file. Tweak values to match your team’s convention.
 # - All keys are optional; missing values fall back to defaults.
@@ -29,7 +29,7 @@ tags:
   #   "{tag}:"      -> "feat: Message"
   #   "{Tag}{sep}"  -> "Feat Message"
   style: "{tag}:"
-  separator: " "        # Separator between tag and subject (can be used as {sep} in style)
+  separator: ": "        # Separator between tag and subject (can be used as {sep} in style)
 
 message:
   language: "ko"        # "ko" | "en"
