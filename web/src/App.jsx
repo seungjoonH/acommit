@@ -40,8 +40,20 @@ const DEFAULTS = {
   conventional: { compatible: false, scope: { enabled: false, inferFromPath: true } },
   prompts: [],
   llm: { provider: 'gemini', model: 'gemini-2.5-flash', maxOutputTokens: 4000, maxPromptTokens: 200000 },
-  ignore: { files: ['package-lock.json', '*.lock', 'dist/**'], tagsForPaths: { 'docs/**': 'docs', 'scripts/**': 'chore' } },
-  diff: { includeBinary: false, untrackedSizeLimit: 512000 },
+  ignore: {
+    tagsForPaths: {
+      'docs/**': 'docs',
+      'scripts/**': 'chore',
+      '**/package-lock.json': 'chore',
+      '*.lock': 'chore',
+    },
+  },
+  diff: {
+    includeBinary: false,
+    untrackedSizeLimit: 512000,
+    omitContent: ['**/package-lock.json', 'package-lock.json', '*.lock', 'pnpm-lock.yaml', 'yarn.lock'],
+    skip: ['dist/**'],
+  },
 };
 
 const layout = {
