@@ -1,14 +1,23 @@
 {
   "name": "acommit",
   "version": "0.2.0",
-  "description": "",
+  "description": "AI-assisted git commit message CLI",
   "bin": {
     "acommit": "./bin/acommit.js"
   },
-  "main": "index.js",
+  "files": [
+    "bin/",
+    "src/",
+    "dist/web/",
+    "samples/",
+    ".env.sample",
+    "README.md"
+  ],
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
-    "start": "node bin/acommit.js"
+    "start": "node bin/acommit.js",
+    "build:web": "npm run build --prefix web",
+    "prepublishOnly": "npm run build:web"
   },
   "devDependencies": {
     "jest": "^29.6.1"
@@ -18,12 +27,14 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@clack/prompts": "^0.10.1",
     "@google/generative-ai": "^0.24.1",
     "chalk": "^5.6.0",
     "cli-progress": "^3.12.0",
     "commander": "^14.0.0",
     "dotenv": "^17.2.3",
     "openai": "^6.8.1",
+    "picocolors": "^1.1.1",
     "yaml": "^2.8.1"
   }
 }
