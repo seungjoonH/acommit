@@ -1,3 +1,27 @@
 node_modules/
 .env
+.env.*
+!.env.sample
 .acommit/
+
+# OS / editor junk
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# Test / tooling output
+coverage/
+*.log
+
+# Build output (rebuilt via npm run build:web / prepublishOnly)
+dist/
+
+# Rules UI dev deps
+web/node_modules/
+
+# Internal — local experiments only (not GitHub, not npm)
+eval/
+experiments/
+docs/
+.claude/
+.acommit/results/
