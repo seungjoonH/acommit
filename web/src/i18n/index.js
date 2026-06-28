@@ -15,7 +15,7 @@ const translations = {
     previewForcedTag: '강제 태그',
     previewModeByTag: '최소 파일 수: {min}',
     previewModeByDirectory: '깊이: {depth}단계 · 최소 파일 수: {min}',
-    previewModeBySimilarity: '임계값: {threshold} · 최대 크기: {max} · 최소 파일 수: {min}',
+    previewModeBySimilarity: '임계값: {threshold} · 최소 파일 수: {min}',
     tagsExampleSuffix: '메시지',
     previewScenario: '시나리오',
     modalTitle: '변경사항을 초기화하시겠습니까?',
@@ -109,8 +109,6 @@ const translations = {
     groupingMinFilesDesc: '이 수보다 적으면 per-file로 fallback',
     groupingThreshold: '유사도 임계값',
     groupingThresholdDesc: '`0` (느슨) ~ `1` (엄격). 높을수록 묶이기 어려움',
-    groupingMaxGroup: '그룹 최대 파일 수',
-    groupingMaxGroupDesc: '한 커밋에 포함될 최대 파일 수',
     groupingSelected: '선택됨',
 
     // LLM
@@ -183,7 +181,7 @@ const translations = {
     previewForcedTag: 'Forced tag',
     previewModeByTag: 'Min files: {min}',
     previewModeByDirectory: 'Depth: {depth} · Min files: {min}',
-    previewModeBySimilarity: 'Threshold: {threshold} · Max size: {max} · Min files: {min}',
+    previewModeBySimilarity: 'Threshold: {threshold} · Min files: {min}',
     tagsExampleSuffix: 'message',
     previewScenario: 'Scenario',
     modalTitle: 'Reset all settings?',
@@ -273,8 +271,6 @@ const translations = {
     groupingMinFilesDesc: 'Buckets smaller than this fall back to per-file',
     groupingThreshold: 'Similarity threshold',
     groupingThresholdDesc: '`0` (loose) ~ `1` (strict). Higher = harder to group',
-    groupingMaxGroup: 'Max group size',
-    groupingMaxGroupDesc: 'Maximum files per commit',
     groupingSelected: 'Selected',
 
     llm: 'LLM',

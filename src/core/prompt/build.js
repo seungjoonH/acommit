@@ -1,6 +1,7 @@
 // src/core/prompt/build.js
 import { CHARS_PER_TOKEN, ENTRY_SEPARATOR } from "../constants.js";
 import { describeTagExample } from "../tags/render.js";
+import { resolveForcedTag } from "../ignore/match.js";
 
 function filteredPathTagEntries(cfg) {
   const entries = Object.entries(cfg.ignore?.tagsForPaths ?? {});
@@ -12,15 +13,29 @@ function filteredPathTagEntries(cfg) {
 
 function describeTagHeuristics(cfg) {
   if (cfg?.tags?.enabled === false) return '';
+  const allowed = new Set((cfg.tags?.list || []).map((t) => String(t).toLowerCase()));
+  const hints = [
+    ['refactor', '- refactor: extract/move/reorganize — new module/file holding logic moved out of another file; updating imports/call sites (NOT feat, even when the extracted file is new)'],
+    ['fix', '- fix: stricter validation or bug fix in-place — but if validation logic is EXTRACTED to a new module, use refactor for all related commits'],
+    ['feat', '- feat: new user-facing capability or behavior (not extraction/refactoring of existing logic)'],
+    ['docs', '- docs: documentation — any *.md file, docs/**; never feat for markdown-only changes'],
+    ['test', '- test: test-only changes'],
+    ['chore', '- chore: tooling, CI, lockfiles'],
+  ];
+  const lines = hints
+    .filter(([tag]) => !allowed.size || allowed.has(tag))
+    .map(([, line]) => line);
+  if (!lines.length) {
+    return 'Tag selection: use ONLY tags from the allowed list above.';
+  }
   return [
-    'Tag selection (use allowed tags only):',
-    '- refactor: extract/move/reorganize logic (new module from existing inline code; update call sites)',
-    '- fix: bug fix, validation, stricter input checks',
-    '- feat: new capability or behavior',
-    '- docs: documentation-only changes under docs/**',
-    '- test: test-only changes',
-    '- chore: tooling, CI, lockfiles',
-  ].join('\n');
+    'Tag selection (use allowed tags ONLY — never invent or use unlisted tags):',
+    '- CRITICAL: code extraction (new helper/validator module + existing file imports it) → refactor on EVERY commit for that extraction (never feat/fix).',
+    ...lines,
+    allowed.size && !allowed.has('docs')
+      ? '- docs/** paths: if "docs" is not allowed, use feat for new content or fix for corrections.'
+      : null,
+  ].filter(Boolean).join('\n');
 }
 
 function describeGrouping(cfg) {
@@ -41,9 +56,10 @@ function describeGrouping(cfg) {
   if (mode === "by-directory") {
     lines.push(
       `- directoryDepth: ${depth} — bucket = first ${depth} path segment(s) of each [FILENAME].`,
-      `- NEVER mix files from different buckets in one commit (e.g. apps/admin/* and apps/storefront/* are separate).`,
-      `- One commit per bucket that has ≥ minFilesPerGroup (${minFiles}) files; smaller buckets → per-file commits.`,
-      `- Example depth 2: apps/admin/* | apps/storefront/* | libs/shared/* | tools/ci/* → separate commits.`,
+      `- NEVER mix files from different buckets in one git add/commit (e.g. apps/admin/* and apps/storefront/* are separate).`,
+      `- Put ALL files from the same bucket in ONE git add when that bucket has ≥ minFilesPerGroup (${minFiles}) files.`,
+      `- Example depth 2: apps/admin/* | apps/storefront/* | libs/shared/* | tools/ci/* → separate commits; all libs/shared/** files → single commit.`,
+      `- Smaller buckets (< ${minFiles} files) → per-file commits.`,
     );
   } else if (mode === "by-tag") {
     lines.push(
@@ -53,16 +69,28 @@ function describeGrouping(cfg) {
       `- One commit per tag bucket; if a bucket has < minFilesPerGroup (${minFiles}), fall back to per-file.`
     );
   } else if (mode === "by-similarity") {
+    const mdSim = Number.isFinite(g.markdownSameDirSimilarity)
+      ? g.markdownSameDirSimilarity
+      : 0.55;
     lines.push(
-      `- Cluster files by path/filename similarity (threshold=${g.threshold}, maxGroupSize=${g.maxGroupSize}).`,
-      `- If a cluster has < minFilesPerGroup (${minFiles}), fall back to per-file commits.`,
+      `- Cluster when computeFileSimilarity >= threshold (${g.threshold}).`,
+      `- Similarity = max(path segments, locale pair=1.0, same-dir markdown=${mdSim}).`,
+      `- Locale pairs (.en/.ko same basename) always score 1.0.`,
+      `- README.md vs CHANGELOG.md vs LICENSE.md (same dir): score ${mdSim} — merge when threshold <= ${mdSim}, else separate commits.`,
+      `- Set markdownSameDirSimilarity: 1 to always bundle same-dir markdown; 0 for locale-only pairing.`,
+      `- clusters < minFilesPerGroup (${minFiles}) fall back to per-file.`,
       "- Split when top-level prefix or intent differs (e.g. packages/auth vs packages/billing vs docs/).",
+      "- NEVER mix packages/auth, packages/billing, and docs/** paths in one git add.",
+      "- packages/auth/* → ONE git add/commit for ALL auth files (never split into multiple auth commits).",
+      "- Auth/login validation hardening → tag fix; billing/tax calculation corrections → tag fix; code extraction to new modules → tag refactor.",
+      "- Stricter validation in existing handlers (no new module) → tag fix (not feat/refactor).",
       "- Each commit message must match ONLY the files in that group (do not describe billing changes in an auth commit).",
     );
   } else if (mode === "per-file") {
     lines.push(
       "- Create exactly one commit per file.",
       "- Emit a separate git add + git commit pair for EVERY file — never bundle multiple files in one git add.",
+      "- Extract-and-wire pair (new module file + existing file imports it): tag BOTH commits refactor (never feat/fix).",
     );
   } else if (mode === "none") {
     lines.push("- Produce commit messages only; still include per-file shell commands (git add + git commit).");
@@ -214,7 +242,9 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
         : []),
       "Then exactly:",
       "git add <every file path on ONE line, space-separated>",
-      `git commit -m "<subject>"`,
+      config.message.lines === 'multi'
+        ? 'git commit -m "<subject>\\n\\n- bullet1\\n- bullet2"'
+        : `git commit -m "<subject>"`,
       "",
       "Rules:",
       "- Do not invent changes; only use provided diffs.",
@@ -246,7 +276,10 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
     "Rules:",
     "- Do not invent changes; only use provided diffs.",
     "- If lines=single, output only one subject line.",
-    "- If lines=multi, output subject then 2-4 concise bullets (no per-file path headers).",
+    "- If lines=multi, output subject then 2-4 concise bullets starting with `-` (no plain paragraphs).",
+    config.message?.lines === 'multi'
+      ? '- For lines=multi, bullets MUST use `-` prefix in both narrative and git commit -m (\\n between subject and bullets).'
+      : null,
     "- Keep output in the specified language and style.",
     "",
     "At the end, include a shell block wrapped in ```bash ... ``` with executable git commands.",
@@ -275,19 +308,40 @@ function buildUserHeader() {
   ].join("\n");
 }
 
+function describeGroupHints(config, groupFiles, planGroup) {
+  const lines = [];
+  if (planGroup?.rationale) {
+    lines.push(`# GROUP INTENT (from plan): ${planGroup.rationale}`);
+  }
+  if (planGroup?.tag && config.tags?.enabled !== false) {
+    lines.push(`# REQUIRED TAG (from plan): ${planGroup.tag}:`);
+  } else if (groupFiles?.length && config.tags?.enabled !== false) {
+    const tags = groupFiles.map((f) => resolveForcedTag(f, config.ignore?.tagsForPaths));
+    const forced = tags.filter(Boolean);
+    const unique = [...new Set(forced)];
+    if (unique.length === 1) {
+      lines.push(`# REQUIRED TAG: ${unique[0]}: (forced by path rules for every file in this group)`);
+    }
+  }
+  return lines.join('\n');
+}
+
 export function buildPromptFromDiff(config, diffText, extraPrompts = [], opts = {}) {
-  const { perGroup = false, groupFiles = [] } = opts;
+  const { perGroup = false, groupFiles = [], planGroup = null } = opts;
   const budget = Math.floor(config.llm.maxPromptTokens * 0.85);
   const headerReserve = 512;
   const diffBudget = Math.max(256, budget - headerReserve);
 
   const sys = buildSystemPrompt(config, { perGroup });
+  const groupHints = perGroup ? describeGroupHints(config, groupFiles, planGroup) : '';
   const userHeader = perGroup
     ? [
         "# INPUT: Git-style changes for ONE commit group",
+        "Grouping is already fixed — generate exactly one commit for the files below; do not split or merge.",
         groupFiles.length
           ? `# Files in this group: ${groupFiles.join(', ')}`
           : '',
+        groupHints,
         `- Blocks separated by '${ENTRY_SEPARATOR}'.`,
         "- Blocks marked CONTENT OMITTED include path/metadata only — still commit those files.",
         "",

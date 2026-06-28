@@ -29,7 +29,7 @@ export class ProgressUI {
   startFiles(total) {
     if (this.#bar) this.endFiles();
     this.#bar = new SingleBar({
-      format: `${pc.green("progress")} {bar} {percentage}% | {value}/{total} | {file}`,
+      format: `${pc.green("diffs")} {bar} {percentage}% | {value}/{total} | {file}`,
       barCompleteChar: "█",
       barIncompleteChar: "░",
       hideCursor: true,

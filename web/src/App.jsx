@@ -35,7 +35,6 @@ const DEFAULTS = {
     directoryDepth: 1,
     minFilesPerGroup: 2,
     threshold: 0.6,
-    maxGroupSize: 10,
   },
   conventional: { compatible: false, scope: { enabled: false, inferFromPath: true } },
   prompts: [],

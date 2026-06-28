@@ -174,14 +174,9 @@ export default function GroupingSection({ cfg, onChange, t }) {
       )}
 
       {mode === 'by-similarity' && (
-        <>
-          <Field label={t('groupingThreshold')} id="grouping.threshold" desc={t('groupingThresholdDesc')} horizontal>
-            <Slider value={g.threshold ?? 0.6} onChange={(v) => set('threshold', v)} min={0} max={1} step={0.05} />
-          </Field>
-          <Field label={t('groupingMaxGroup')} id="grouping.maxGroupSize" desc={t('groupingMaxGroupDesc')} horizontal>
-            <Slider value={g.maxGroupSize ?? 10} onChange={(v) => set('maxGroupSize', v)} min={2} max={20} step={1} />
-          </Field>
-        </>
+        <Field label={t('groupingThreshold')} id="grouping.threshold" desc={t('groupingThresholdDesc')} horizontal>
+          <Slider value={g.threshold ?? 0.6} onChange={(v) => set('threshold', v)} min={0} max={1} step={0.05} />
+        </Field>
       )}
     </Section>
   );
