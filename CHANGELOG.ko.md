@@ -6,28 +6,27 @@
 
 ### 버그 수정
 
-- **`acommit rules` / `acommit result` (npm 설치)** — 배포 패키지에 `web/src`가 없어도 미리 빌드된 `dist/web`으로 UI가 정상 실행되도록 수정 (이전 버전은 `ENOENT`로 실패)
+- **`npm install` 후 `acommit rules` / `acommit result`** — 전역·패키지 설치 환경에서 설정 UI·결과 뷰어가 `ENOENT` 없이 열리도록 수정
 
 ### 그룹화
 
-- **`grouping.maxGroupSize` 제거** — 커밋 그룹당 파일 수 인위 제한 없음; 토큰/출력 예산이 실질 한도
-- **Plan 자동 보정** — LLM 계획의 누락·중복·알 수 없는 경로를 휴리스틱 초안 기준으로 보정 (재요청 없음)
-- **출력 토큰 상한** — 그룹별 생성 시 `llm.maxOutputTokens` 전체 사용 (숨겨진 800 토큰 상한 제거)
-- **Plan → Generate 파이프라인** — `by-similarity`는 LLM **계획** 1회(의도 기반 그룹 JSON) 후 그룹마다 **생성** 1회; 구조 모드(`per-file`, `by-directory`, `by-tag`)는 규칙만으로 계획(LLM 추가 호출 없음)
-- **계획 검증** — 모든 파일이 정확히 한 그룹에만 포함, 경로 태그 충돌, (eval) `expectedGroups` 오라클 실패 시 커밋 메시지 생성 전에 중단
-- **휴리스틱 초안** — 경로 유사도 클러스터링은 `by-similarity`에서 LLM 계획 단계의 힌트로만 사용되며 최종 분할이 아님
+- **`grouping.maxGroupSize` 설정 제거** — 그룹당 파일 수를 따로 맞출 필요 없음 (토큰·출력 한도가 실질 제한)
+- **`by-similarity` 그룹 품질 개선** — 비슷한 변경끼리 더 잘 묶이고, `CHANGELOG.en` / `CHANGELOG.ko` 같은 로케일 쌍을 한 커밋으로 묶기 쉬워짐
+- **긴 출력 잘림 완화** — 커밋·그룹이 많을 때 메시지가 중간에 잘리던 경우 감소 (`rules.yml`의 `maxOutputTokens`를 끝까지 활용)
+- **잘못된 그룹이면 조기 중단** — 파일이 빠지거나 겹치는 등 그룹이 성립하지 않으면, 엉뚱한 커밋 메시지를 내기 전에 오류로 알림
 
-### 프롬프트 품질
+### 커밋 메시지 품질
 
-- **태그 휴리스틱 강화** — 코드 추출(extract) 시나리오에서 `refactor` 태그 우선 규칙 명시, 허용 태그 목록 기준으로 힌트 필터링
-- **`*.md`** — 기본 `tagsForPaths`에서 모든 마크다운을 `docs`로; 그룹별 `REQUIRED TAG` 힌트
-- **그룹화 지침 보강** — `by-directory`, `by-similarity`, `per-file` 모드별 금지·권장 패턴 추가
-- **`lines=multi`** — per-group 프롬프트에 `git commit -m` 멀티라인 예시 반영
+- **태그 선택** — 코드 분리·추출 시 `refactor`를 더 잘 쓰고, `*.md`는 `docs`로 맞추기 쉬워짐
+- **허용 태그만 쓸 때** — `tags.list`에 없는 태그를 경로만 보고 쓰는 경우 감소 (예: `docs`만 허용일 때 `docs/**`도 `feat`/`fix`로)
+- **멀티라인(`lines: multi`)** — 본문 bullet과 `git add` / `git commit` 줄 형식이 더 안정적
+- **한국어 서술형(`style: declarative`)** — `~함` / `~습니다` 어미를 예시·지침에 맞게 더 잘 따름
+- **메시지 내용** — 폴더명·경로(`k8s`, `migrations` 등)만 보고 쓰지 않고, 실제 diff 변경을 반영하도록 개선
 
-### CLI UX
+### CLI
 
-- **`acommit commit`** — 진행 표시를 diff 수집 단계임이 드러나도록 문구 변경, 그룹핑 후 `N개 파일 → M그룹` 요약 출력
-- **진행 바** — 라벨 `progress` → `diffs` (파일별 diff 수집임을 구분)
+- **`acommit commit` 진행 표시** — 지금 단계가 diff 수집인지 구분하기 쉽게 문구·라벨 정리 (`diffs`)
+- **그룹 요약** — 그룹핑 후 `N개 파일 → M그룹` 한 줄로 표시
 
 ---
 

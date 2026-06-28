@@ -6,28 +6,27 @@
 
 ### Bug Fixes
 
-- **`acommit rules` / `acommit result` (npm install)** — use the prebuilt `dist/web` bundle when `web/src` is not shipped; fixes `ENOENT` failures on global/npm installs
+- **`acommit rules` / `acommit result` after `npm install`** — settings UI and the result viewer open without `ENOENT` on global and local package installs
 
 ### Grouping
 
-- **Removed `grouping.maxGroupSize`** — no artificial cap on files per commit group; token/output budgets remain the real limits
-- **Plan auto-repair** — LLM plan gaps (missing/duplicate/unknown paths) are fixed from the heuristic draft before validation; no re-request
-- **Output token cap** — per-group generate uses full `llm.maxOutputTokens` (removed hidden 800-token ceiling)
-- **Plan → Generate pipeline** — `by-similarity` runs one LLM **plan** request (intent grouping JSON), then one **generate** request per group; structural modes (`per-file`, `by-directory`, `by-tag`) use rules-only plans with no extra LLM call
-- **Plan validation** — every file exactly once, path tag conflicts, and optional `expectedGroups` oracle (eval) fail before any commit message is generated
-- **Heuristic draft** — path-similarity clustering is sent to the LLM planner as a hint only in `by-similarity` mode, not as the final partition
+- **Removed `grouping.maxGroupSize`** — no separate cap on files per group; token and output limits are the real constraints
+- **Better `by-similarity` grouping** — related changes cluster more reliably; locale pairs like `CHANGELOG.en` / `CHANGELOG.ko` are easier to keep in one commit
+- **Less truncated output** — long or multi-commit runs are less likely to cut off mid-message (`maxOutputTokens` from `rules.yml` is used fully)
+- **Fail fast on bad groups** — if files are missing, duplicated, or otherwise invalid, you get an error instead of nonsense commit messages
 
-### Prompt Quality
+### Commit message quality
 
-- **Tag heuristics** — stronger `refactor` guidance for extract-and-wire scenarios; hints filtered to allowed tags only
-- **`*.md`** — default `tagsForPaths` maps all markdown to `docs`; per-group `REQUIRED TAG` hint
-- **Grouping instructions** — clearer do/don't rules for `by-directory`, `by-similarity`, and `per-file` modes
-- **`lines=multi`** — per-group prompt includes multiline `git commit -m` example
+- **Tag choice** — clearer `refactor` for extract-and-wire changes; `*.md` files lean toward `docs`
+- **Strict tag lists** — when only certain tags are allowed, the model is less likely to pick a tag from the path alone (e.g. `feat`/`fix` for `docs/**` when `docs` is not in the list)
+- **`lines: multi`** — bullet bodies and `git add` / `git commit` lines are more consistent
+- **Korean declarative (`style: declarative`)** — subjects ending in ~함 / ~습니다 follow the configured style more often
+- **Message content** — fewer messages guessed from folder names (`k8s`, `migrations`, etc.); more aligned with the actual diff
 
-### CLI UX
+### CLI
 
-- **`acommit commit`** — clarify that the progress bar is diff collection; print `N files → M groups` after grouping
-- **Progress bar** — label renamed `progress` → `diffs` to distinguish from LLM/commit steps
+- **`acommit commit` progress** — clearer labels so diff collection is distinct from later steps (`diffs`)
+- **Group summary** — prints `N files → M groups` after grouping
 
 ---
 
