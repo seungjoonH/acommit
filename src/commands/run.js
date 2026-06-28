@@ -5,7 +5,14 @@ import { exec } from 'node:child_process';
 import { DiffCollector } from "../core/diff/collector.js";
 import { loadConfig } from "../core/config/load.js";
 import { buildPromptFromDiff } from "../core/prompt/build.js";
-import { groupFilePaths } from "../core/grouping/group.js";
+import {
+  buildCommitPlan,
+  usesLlmPlan,
+} from "../core/grouping/plan.js";
+import {
+  validateCommitGroupPlan,
+  formatPlanValidationErrors,
+} from "../core/grouping/plan-validate.js";
 import {
   validateCommitPlan,
   formatValidationErrors,
@@ -91,20 +98,20 @@ function determineModelUsed(cfg) {
   return cfg.llm?.model ?? null;
 }
 
-function diffTextForGroup(diffByFile, group) {
-  return group.map((fp) => diffByFile.get(fp) ?? '').join('');
+function diffTextForGroup(diffByFile, groupFiles) {
+  return groupFiles.map((fp) => diffByFile.get(fp) ?? '').join('');
 }
 
-function buildGroupPlans(cfg, groups, diffByFile, extraPrompts) {
-  return groups.map((group) => {
-    const groupDiff = diffTextForGroup(diffByFile, group);
+function buildGeneratePlans(cfg, commitPlan, diffByFile, extraPrompts) {
+  return commitPlan.groups.map((planGroup) => {
+    const groupDiff = diffTextForGroup(diffByFile, planGroup.files);
     const built = buildPromptFromDiff(
       cfg,
       groupDiff,
       extraPrompts,
-      { perGroup: true, groupFiles: group },
+      { perGroup: true, groupFiles: planGroup.files, planGroup },
     );
-    return { group, ...built };
+    return { planGroup, group: planGroup.files, ...built };
   });
 }
 
@@ -119,41 +126,92 @@ export async function run() {
   const { files, diffByFile } = await collectLocalDiff(cwd, cfg, ui, t);
   if (!files.length) return ui.note(`[acommit] ${t.cli.noChanges}`);
 
-  const groups = groupFilePaths(files, cfg);
-  const plans = buildGroupPlans(cfg, groups, diffByFile, extraPrompts);
-  const validation = validateCommitPlan(groups, cfg, {
-    promptTokens: plans.map((p) => p.approxTokens),
+  let clientInfo = null;
+  let commitPlan;
+
+  if (usesLlmPlan(cfg)) {
+    clientInfo = await ensureClient(cfg, ui, t);
+    if (!clientInfo) return ui.note(`[acommit] ${t.cli.noClient}`);
+
+    ui.startSpinner(t.cli.planning);
+    try {
+      commitPlan = await buildCommitPlan({
+        files,
+        cfg,
+        diffByFile,
+        client: clientInfo.client,
+        extraPrompts,
+      });
+    } catch (err) {
+      ui.stopSpinner(t.cli.failed);
+      logger.error(
+        `${t.cli.planFailed(err?.message || String(err))}\n`
+        + 'Fix rules.yml or staging — no commit messages were generated.',
+        { exit: false },
+      );
+      return;
+    }
+    ui.stopSpinner(t.cli.done);
+    ui.info(`[acommit] ${t.cli.planSource(commitPlan.source)}`);
+    if (commitPlan.repairs?.length) {
+      ui.info(`[acommit] ${t.cli.planRepaired(commitPlan.repairs.length)}`);
+    }
+  } else {
+    commitPlan = await buildCommitPlan({ files, cfg });
+  }
+
+  const planValidation = validateCommitGroupPlan(commitPlan, files, cfg);
+  if (!planValidation.ok) {
+    logger.error(
+      `Invalid commit plan (${files.length} files, ${commitPlan.groups.length} groups).\n`
+      + `${formatPlanValidationErrors(planValidation.issues)}\n`
+      + 'Fix rules.yml or stage fewer files — no commit message was generated.',
+      { exit: false },
+    );
+    return;
+  }
+
+  const generatePlans = buildGeneratePlans(cfg, commitPlan, diffByFile, extraPrompts);
+  const fileGroups = commitPlan.groups.map((g) => g.files);
+
+  ui.info(`[acommit] ${t.cli.grouped(files.length, commitPlan.groups.length, commitPlan.mode)}`);
+
+  const outputValidation = validateCommitPlan(fileGroups, cfg, {
+    promptTokens: generatePlans.map((p) => p.approxTokens),
   });
 
-  if (!validation.ok) {
+  if (!outputValidation.ok) {
     logger.error(
-      `Cannot generate commits safely (${files.length} files, ${groups.length} groups).\n`
-      + `${formatValidationErrors(validation.issues)}\n`
+      `Cannot generate commits safely (${files.length} files, ${commitPlan.groups.length} groups).\n`
+      + `${formatValidationErrors(outputValidation.issues)}\n`
       + 'Fix rules.yml or stage fewer files — no LLM request was sent.',
       { exit: false },
     );
     return;
   }
 
-  const clientInfo = await ensureClient(cfg, ui, t);
-  if (!clientInfo) return ui.note(`[acommit] ${t.cli.noClient}`);
+  if (!clientInfo) {
+    clientInfo = await ensureClient(cfg, ui, t);
+    if (!clientInfo) return ui.note(`[acommit] ${t.cli.noClient}`);
+  }
+
   const { provider, client } = clientInfo;
   const gen = client.gen;
   const modelUsed = determineModelUsed(cfg);
   const outputCap = perGroupOutputTokenCap(cfg);
   const llm = llmLabel(cfg);
 
-  ui.info(`[acommit] ${t.cli.using(llm, plans.length)}`);
+  ui.info(`[acommit] ${t.cli.using(llm, generatePlans.length)}`);
 
   const sessionId = nowStamp();
   const commits = [];
   let totalApproxTokens = 0;
 
-  for (let i = 0; i < plans.length; i++) {
-    const { group, system, user, approxTokens } = plans[i];
+  for (let i = 0; i < generatePlans.length; i += 1) {
+    const { group, planGroup, system, user, approxTokens } = generatePlans[i];
     totalApproxTokens += approxTokens;
 
-    ui.startSpinner(t.cli.generating(i + 1, plans.length));
+    ui.startSpinner(t.cli.generating(i + 1, generatePlans.length));
     const out = await gen(user, { system, maxTokens: outputCap });
     const text = (out?.text ?? '').trim();
     if (!text) {
@@ -167,7 +225,7 @@ export async function run() {
     ui.stopSpinner(t.cli.done);
 
     const parsed = parseCommitText(text, group, cfg);
-    commits.push(parsed);
+    commits.push({ ...parsed, planRationale: planGroup.rationale || null, planTag: planGroup.tag || null });
     console.log('\n' + text + '\n');
   }
 
@@ -179,6 +237,8 @@ export async function run() {
     provider,
     model: modelUsed,
     groupingMode: cfg.grouping?.mode ?? 'per-file',
+    planSource: commitPlan.source,
+    commitPlan,
     tagStyle: cfg.tags?.style ?? '{tag}',
     tagSeparator: cfg.tags?.separator ?? ': ',
     prompts: promptsForResult,
@@ -188,7 +248,6 @@ export async function run() {
   const saved = await saveSession(cwd, session);
   ui.note(`[acommit] ${t.cli.saved(saved)}\n`);
 
-  // Open result viewer
   await ensureWebBuild().catch(() => {});
   const { server, port: actualPort } = await startServer(cwd).catch(() => ({ server: null, port: null }));
   if (!server) return;
