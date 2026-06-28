@@ -99,13 +99,6 @@ function buildResult(cfg, files, tag, rawMsg, bodyLines, opts) {
   };
 }
 
-function chunkBy(arr, maxSize) {
-  if (!maxSize || arr.length <= maxSize) return [arr];
-  const chunks = [];
-  for (let i = 0; i < arr.length; i += maxSize) chunks.push(arr.slice(i, i + maxSize));
-  return chunks;
-}
-
 function getDirKey(filePath, depth) {
   const parts = filePath.split('/');
   return parts.slice(0, depth).join('/');
@@ -141,7 +134,6 @@ export function computeMulti(cfg) {
   const minFiles = cfg.grouping?.minFilesPerGroup ?? 2;
   const depth    = cfg.grouping?.directoryDepth   ?? 1;
   const threshold = cfg.grouping?.threshold       ?? 0.6;
-  const maxGroup  = cfg.grouping?.maxGroupSize     ?? 10;
 
   if (files.length === 0) return [];
 
@@ -241,7 +233,7 @@ export function computeMulti(cfg) {
       }
     }
 
-    const finalGroups = groups.flatMap(g => chunkBy(g, maxGroup));
+    const finalGroups = groups;
 
     return finalGroups.flatMap(entries => {
       if (entries.length < minFiles) {
@@ -271,7 +263,6 @@ export function computeFileGroups(cfg) {
   const minFiles = cfg.grouping?.minFilesPerGroup ?? 2;
   const depth    = cfg.grouping?.directoryDepth   ?? 1;
   const threshold = cfg.grouping?.threshold       ?? 0.6;
-  const maxGroup  = cfg.grouping?.maxGroupSize     ?? 10;
 
   const map = new Map();
 
@@ -338,7 +329,7 @@ export function computeFileGroups(cfg) {
         }
       }
     }
-    const finalGroups = groups.flatMap(g => chunkBy(g, maxGroup));
+    const finalGroups = groups;
     let gi = 0;
     finalGroups.forEach(entries => {
       if (entries.length < minFiles) {

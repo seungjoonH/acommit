@@ -135,7 +135,13 @@ const STRINGS = {
     cli: {
       noChanges: 'No changes detected.',
       noClient: 'No LLM client available.',
-      processing: (n) => `Processing ${n} changed file${n !== 1 ? 's' : ''}...`,
+      processing: (n) => `Collecting diffs for ${n} changed file${n !== 1 ? 's' : ''}...`,
+      grouped: (files, groups, mode) =>
+        `${files} file${files !== 1 ? 's' : ''} → ${groups} commit group${groups !== 1 ? 's' : ''} (${mode ?? 'per-file'})`,
+      planning: 'Planning commit groups...',
+      planSource: (source) => `Plan: ${source === 'llm' ? 'LLM intent grouping' : 'rules'}`,
+      planRepaired: (n) => `Plan auto-repaired (${n} fix${n !== 1 ? 'es' : ''} from draft)`,
+      planFailed: (msg) => `Grouping plan failed: ${msg}`,
       using: (llm, n) => `Using ${llm}  ·  ${n} commit${n !== 1 ? 's' : ''}`,
       initClient: (llm) => `Initializing LLM client (${llm})...`,
       ready: 'ready.',
@@ -279,7 +285,13 @@ const STRINGS = {
     cli: {
       noChanges: '변경된 파일이 없습니다.',
       noClient: 'LLM 클라이언트를 사용할 수 없습니다.',
-      processing: (n) => `변경된 파일 ${n}개 처리 중...`,
+      processing: (n) => `변경 diff 수집 중 (${n}개 파일)...`,
+      grouped: (files, groups, mode) =>
+        `${files}개 파일 → 커밋 ${groups}그룹 (${mode ?? 'per-file'})`,
+      planning: '커밋 그룹 계획 중...',
+      planSource: (source) => `계획: ${source === 'llm' ? 'LLM 의도 기반 그룹' : '규칙'}`,
+      planRepaired: (n) => `계획 자동 보정 (${n}건, 초안 기준)`,
+      planFailed: (msg) => `그룹 계획 실패: ${msg}`,
       using: (llm, n) => `${llm}  ·  ${n}개 커밋`,
       initClient: (llm) => `LLM 클라이언트 초기화 중 (${llm})...`,
       ready: '준비 완료.',

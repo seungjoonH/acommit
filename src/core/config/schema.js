@@ -38,8 +38,9 @@ export const DEFAULTS = {
     // Tag/directory grouping thresholds
     minFilesPerGroup: 2,
     // Similarity grouping thresholds
-    threshold: 0.6,            // 0~1
-    maxGroupSize: 10,
+    threshold: 0.6,            // 0~1 — merge when computeFileSimilarity >= threshold
+    // Same-dir .md with different basenames (README vs CHANGELOG): similarity score (0=off, 1=always cluster)
+    markdownSameDirSimilarity: 0.55,
   },
 
   diff: {
@@ -62,6 +63,7 @@ export const DEFAULTS = {
   ignore: {
     tagsForPaths: {
       "docs/**": "docs",
+      "*.md": "docs",
       "scripts/**": "chore",
       "**/package-lock.json": "chore",
       "*.lock": "chore",
@@ -84,7 +86,14 @@ function mergeDefaults(user = {}) {
     tags:         { ...DEFAULTS.tags,         ...(user.tags || {}) },
     grouping:     { ...DEFAULTS.grouping,     ...(user.grouping || {}) },
     diff:         { ...DEFAULTS.diff,         ...(user.diff || {}) },
-    ignore:       { ...DEFAULTS.ignore,       ...(user.ignore || {}) },
+    ignore: {
+      ...DEFAULTS.ignore,
+      ...(user.ignore || {}),
+      tagsForPaths: {
+        ...DEFAULTS.ignore.tagsForPaths,
+        ...(user.ignore?.tagsForPaths || {}),
+      },
+    },
     conventional: { ...DEFAULTS.conventional, ...(user.conventional || {}) },
   };
 }
@@ -125,7 +134,12 @@ export function normalize(user = {}) {
   if (!Number.isFinite(g.threshold)) g.threshold = DEFAULTS.grouping.threshold;
   if (g.threshold < 0) g.threshold = 0;
   if (g.threshold > 1) g.threshold = 1;
-  if (!Number.isFinite(g.maxGroupSize) || g.maxGroupSize < 1) g.maxGroupSize = DEFAULTS.grouping.maxGroupSize;
+  if (!Number.isFinite(g.markdownSameDirSimilarity)) {
+    g.markdownSameDirSimilarity = DEFAULTS.grouping.markdownSameDirSimilarity;
+  }
+  if (g.markdownSameDirSimilarity < 0) g.markdownSameDirSimilarity = 0;
+  if (g.markdownSameDirSimilarity > 1) g.markdownSameDirSimilarity = 1;
+  delete g.maxGroupSize;
 
   if (!Number.isFinite(out.diff.untrackedSizeLimit) || out.diff.untrackedSizeLimit < 0) {
     out.diff.untrackedSizeLimit = DEFAULTS.diff.untrackedSizeLimit;

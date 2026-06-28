@@ -2,6 +2,34 @@
 
 ---
 
+## v0.3.1 — 2026-06-28
+
+### Bug Fixes
+
+- **`acommit rules` / `acommit result` after `npm install`** — settings UI and the result viewer open without `ENOENT` on global and local package installs
+
+### Grouping
+
+- **Removed `grouping.maxGroupSize`** — no separate cap on files per group; token and output limits are the real constraints
+- **Better `by-similarity` grouping** — related changes cluster more reliably; locale pairs like `CHANGELOG.en` / `CHANGELOG.ko` are easier to keep in one commit
+- **Less truncated output** — long or multi-commit runs are less likely to cut off mid-message (`maxOutputTokens` from `rules.yml` is used fully)
+- **Fail fast on bad groups** — if files are missing, duplicated, or otherwise invalid, you get an error instead of nonsense commit messages
+
+### Commit message quality
+
+- **Tag choice** — clearer `refactor` for extract-and-wire changes; `*.md` files lean toward `docs`
+- **Strict tag lists** — when only certain tags are allowed, the model is less likely to pick a tag from the path alone (e.g. `feat`/`fix` for `docs/**` when `docs` is not in the list)
+- **`lines: multi`** — bullet bodies and `git add` / `git commit` lines are more consistent
+- **Korean declarative (`style: declarative`)** — subjects ending in ~함 / ~습니다 follow the configured style more often
+- **Message content** — fewer messages guessed from folder names (`k8s`, `migrations`, etc.); more aligned with the actual diff
+
+### CLI
+
+- **`acommit commit` progress** — clearer labels so diff collection is distinct from later steps (`diffs`)
+- **Group summary** — prints `N files → M groups` after grouping
+
+---
+
 ## v0.3.0 — 2026-06-27
 
 ### Result Viewer

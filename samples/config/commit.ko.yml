@@ -66,7 +66,6 @@ grouping:
 
   # by-similarity 전용
   threshold: 0.60           # 0~1, 높을수록 더 엄격하게 묶음
-  maxGroupSize: 10          # 한 그룹의 최대 파일 수
 
 diff:
   includeBinary: false      # 바이너리 파일 본문 포함 여부(보통 false 권장)

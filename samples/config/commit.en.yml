@@ -68,7 +68,6 @@ grouping:
 
   # Only for by-similarity
   threshold: 0.60           # 0–1 (higher = stricter grouping)
-  maxGroupSize: 10          # Max files per similarity group
 
 diff:
   includeBinary: false       # Include binary file contents (usually false)

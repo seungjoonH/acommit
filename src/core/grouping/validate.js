@@ -1,7 +1,5 @@
 import { CHARS_PER_TOKEN } from '../constants.js';
 
-const PER_GROUP_OUTPUT_CAP = 800;
-
 /** Worst case: one `git add <path>` line per file (invalid but used for safety). */
 export function estimateWorstCaseOutputChars(files) {
   const lines = files.reduce((n, f) => n + 8 + f.length + 1, 0);
@@ -17,7 +15,7 @@ export function estimateExpectedOutputChars(files, cfg) {
 
 export function perGroupOutputTokenCap(cfg) {
   const configured = cfg.llm?.maxOutputTokens ?? 4000;
-  return Math.min(configured, PER_GROUP_OUTPUT_CAP);
+  return Math.max(256, configured);
 }
 
 /**
@@ -28,7 +26,6 @@ export function perGroupOutputTokenCap(cfg) {
  */
 export function validateCommitPlan(groups, cfg, meta = {}) {
   const issues = [];
-  const maxGroupSize = cfg.grouping?.maxGroupSize ?? 10;
   const outputCap = perGroupOutputTokenCap(cfg);
   const maxOutputChars = Math.floor(outputCap * CHARS_PER_TOKEN);
   const maxPromptTokens = cfg.llm?.maxPromptTokens ?? 200_000;
@@ -46,16 +43,6 @@ export function validateCommitPlan(groups, cfg, meta = {}) {
   for (let i = 0; i < groups.length; i++) {
     const group = groups[i];
     const label = `Group ${i + 1}/${groups.length} (${group.length} file${group.length === 1 ? '' : 's'})`;
-
-    if (group.length > maxGroupSize) {
-      issues.push({
-        code: 'GROUP_TOO_LARGE',
-        group: i + 1,
-        fileCount: group.length,
-        message: `${label} exceeds grouping.maxGroupSize (${maxGroupSize}).`,
-        hint: 'Use per-file grouping, lower maxGroupSize, or split changes manually.',
-      });
-    }
 
     const expected = estimateExpectedOutputChars(group, cfg);
     const worst = estimateWorstCaseOutputChars(group);

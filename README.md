@@ -27,10 +27,10 @@ acommit commit
 
 ## Documentation
 
-| Language | Link |
-| --- | --- |
-| English | [README.en.md](./README.en.md) |
-| 한국어 | [README.ko.md](./README.ko.md) |
+| Language | npm | GitHub |
+| --- | --- | --- |
+| English | [README.en.md](https://www.npmjs.com/package/acommit/file/README.en.md) | [README.en.md](https://github.com/seungjoonH/acommit/blob/main/README.en.md) |
+| 한국어 | [README.ko.md](https://www.npmjs.com/package/acommit/file/README.ko.md) | [README.ko.md](https://github.com/seungjoonH/acommit/blob/main/README.ko.md) |
 
 ## License
 

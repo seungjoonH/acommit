@@ -187,12 +187,11 @@ function ModeBadge({ mode, cfg, t }) {
   const depth     = cfg.grouping?.directoryDepth ?? 1;
   const minFiles  = cfg.grouping?.minFilesPerGroup ?? 2;
   const threshold = cfg.grouping?.threshold ?? 0.6;
-  const maxGroup  = cfg.grouping?.maxGroupSize ?? 10;
 
   const hints = {
     'by-tag': fmt(t('previewModeByTag'), { min: minFiles }),
     'by-directory': fmt(t('previewModeByDirectory'), { depth, min: minFiles }),
-    'by-similarity': fmt(t('previewModeBySimilarity'), { threshold, max: maxGroup, min: minFiles }),
+    'by-similarity': fmt(t('previewModeBySimilarity'), { threshold, min: minFiles }),
   }[mode];
 
   if (!hints) return null;

@@ -1,6 +1,6 @@
 {
   "name": "acommit",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "AI-assisted git commit message CLI",
   "bin": {
     "acommit": "./bin/acommit.js"
