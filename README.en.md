@@ -283,7 +283,6 @@ If `style` is not set, it is derived automatically from `case` + `bracket`. Defa
 | `directoryDepth` | Directory depth for `by-directory` mode | `integer` | `1` |
 | `minFilesPerGroup` | Groups smaller than this fall back to `per-file` | `integer` | `2` |
 | `threshold` | Similarity cutoff for `by-similarity` (0–1) | `float` | `0.6` |
-| `maxGroupSize` | Maximum files per group | `integer` | `10` |
 
 **`mode` options:**
 - `per-file` — one commit per file (default)

@@ -283,7 +283,6 @@ acommit --help
 | `directoryDepth` | `by-directory` 모드의 디렉터리 깊이 | `integer` | `1` |
 | `minFilesPerGroup` | 이 미만 파일 수의 그룹은 `per-file`로 분리 | `integer` | `2` |
 | `threshold` | `by-similarity` 유사도 기준 (0~1) | `float` | `0.6` |
-| `maxGroupSize` | 그룹당 최대 파일 수 | `integer` | `10` |
 
 **`mode` 옵션:**
 - `per-file` — 파일 1개당 커밋 1개 (기본값)
