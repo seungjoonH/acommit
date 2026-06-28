@@ -2,6 +2,35 @@
 
 ---
 
+## v0.3.1 — 2026-06-28
+
+### 버그 수정
+
+- **`acommit rules` / `acommit result` (npm 설치)** — 배포 패키지에 `web/src`가 없어도 미리 빌드된 `dist/web`으로 UI가 정상 실행되도록 수정 (이전 버전은 `ENOENT`로 실패)
+
+### 그룹화
+
+- **`grouping.maxGroupSize` 제거** — 커밋 그룹당 파일 수 인위 제한 없음; 토큰/출력 예산이 실질 한도
+- **Plan 자동 보정** — LLM 계획의 누락·중복·알 수 없는 경로를 휴리스틱 초안 기준으로 보정 (재요청 없음)
+- **출력 토큰 상한** — 그룹별 생성 시 `llm.maxOutputTokens` 전체 사용 (숨겨진 800 토큰 상한 제거)
+- **Plan → Generate 파이프라인** — `by-similarity`는 LLM **계획** 1회(의도 기반 그룹 JSON) 후 그룹마다 **생성** 1회; 구조 모드(`per-file`, `by-directory`, `by-tag`)는 규칙만으로 계획(LLM 추가 호출 없음)
+- **계획 검증** — 모든 파일이 정확히 한 그룹에만 포함, 경로 태그 충돌, (eval) `expectedGroups` 오라클 실패 시 커밋 메시지 생성 전에 중단
+- **휴리스틱 초안** — 경로 유사도 클러스터링은 `by-similarity`에서 LLM 계획 단계의 힌트로만 사용되며 최종 분할이 아님
+
+### 프롬프트 품질
+
+- **태그 휴리스틱 강화** — 코드 추출(extract) 시나리오에서 `refactor` 태그 우선 규칙 명시, 허용 태그 목록 기준으로 힌트 필터링
+- **`*.md`** — 기본 `tagsForPaths`에서 모든 마크다운을 `docs`로; 그룹별 `REQUIRED TAG` 힌트
+- **그룹화 지침 보강** — `by-directory`, `by-similarity`, `per-file` 모드별 금지·권장 패턴 추가
+- **`lines=multi`** — per-group 프롬프트에 `git commit -m` 멀티라인 예시 반영
+
+### CLI UX
+
+- **`acommit commit`** — 진행 표시를 diff 수집 단계임이 드러나도록 문구 변경, 그룹핑 후 `N개 파일 → M그룹` 요약 출력
+- **진행 바** — 라벨 `progress` → `diffs` (파일별 diff 수집임을 구분)
+
+---
+
 ## v0.3.0 — 2026-06-27
 
 ### 결과 뷰어

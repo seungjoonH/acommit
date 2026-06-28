@@ -2,6 +2,35 @@
 
 ---
 
+## v0.3.1 — 2026-06-28
+
+### Bug Fixes
+
+- **`acommit rules` / `acommit result` (npm install)** — use the prebuilt `dist/web` bundle when `web/src` is not shipped; fixes `ENOENT` failures on global/npm installs
+
+### Grouping
+
+- **Removed `grouping.maxGroupSize`** — no artificial cap on files per commit group; token/output budgets remain the real limits
+- **Plan auto-repair** — LLM plan gaps (missing/duplicate/unknown paths) are fixed from the heuristic draft before validation; no re-request
+- **Output token cap** — per-group generate uses full `llm.maxOutputTokens` (removed hidden 800-token ceiling)
+- **Plan → Generate pipeline** — `by-similarity` runs one LLM **plan** request (intent grouping JSON), then one **generate** request per group; structural modes (`per-file`, `by-directory`, `by-tag`) use rules-only plans with no extra LLM call
+- **Plan validation** — every file exactly once, path tag conflicts, and optional `expectedGroups` oracle (eval) fail before any commit message is generated
+- **Heuristic draft** — path-similarity clustering is sent to the LLM planner as a hint only in `by-similarity` mode, not as the final partition
+
+### Prompt Quality
+
+- **Tag heuristics** — stronger `refactor` guidance for extract-and-wire scenarios; hints filtered to allowed tags only
+- **`*.md`** — default `tagsForPaths` maps all markdown to `docs`; per-group `REQUIRED TAG` hint
+- **Grouping instructions** — clearer do/don't rules for `by-directory`, `by-similarity`, and `per-file` modes
+- **`lines=multi`** — per-group prompt includes multiline `git commit -m` example
+
+### CLI UX
+
+- **`acommit commit`** — clarify that the progress bar is diff collection; print `N files → M groups` after grouping
+- **Progress bar** — label renamed `progress` → `diffs` to distinguish from LLM/commit steps
+
+---
+
 ## v0.3.0 — 2026-06-27
 
 ### Result Viewer
