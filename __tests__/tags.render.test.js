@@ -22,6 +22,14 @@ describe('ignore/match', () => {
     });
     expect(tag).toBe('image');
   });
+
+  test('CHANGELOG locale files resolve to docs from defaults', () => {
+    const cfg = normalize({});
+    expect(resolveForcedTag('CHANGELOG.en.md', cfg.ignore.tagsForPaths)).toBe('docs');
+    expect(resolveForcedTag('CHANGELOG.ko.md', cfg.ignore.tagsForPaths)).toBe('docs');
+    expect(resolveForcedTag('README.md', cfg.ignore.tagsForPaths)).toBe('docs');
+    expect(resolveForcedTag('src/guide.md', cfg.ignore.tagsForPaths)).toBe('docs');
+  });
 });
 
 describe('tags/render', () => {

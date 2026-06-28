@@ -145,7 +145,6 @@ describe('normalize()', () => {
           minFilesPerGroup: first.grouping.minFilesPerGroup,
           directoryDepth: first.grouping.directoryDepth,
           threshold: first.grouping.threshold,
-          maxGroupSize: first.grouping.maxGroupSize,
         },
       };
 

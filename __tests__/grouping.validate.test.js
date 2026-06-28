@@ -3,7 +3,7 @@ import { CHARS_PER_TOKEN } from '../src/core/constants.js';
 
 const cfg = {
   message: { wrap: 72, lines: 'single' },
-  grouping: { maxGroupSize: 10 },
+  grouping: {},
   llm: { maxOutputTokens: 4000, maxPromptTokens: 200_000 },
 };
 
@@ -14,15 +14,8 @@ describe('validateCommitPlan', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('rejects group larger than maxGroupSize', () => {
-    const files = Array.from({ length: 12 }, (_, i) => `src/f${i}.js`);
-    const result = validateCommitPlan([files], cfg);
-    expect(result.ok).toBe(false);
-    expect(result.issues.some((i) => i.code === 'GROUP_TOO_LARGE')).toBe(true);
-  });
-
-  test('rejects when worst-case output exceeds token cap', () => {
-    const cap = Math.min(cfg.llm.maxOutputTokens, 800);
+  test('rejects when many files exceed output token cap', () => {
+    const cap = cfg.llm.maxOutputTokens;
     const maxChars = Math.floor(cap * CHARS_PER_TOKEN);
     const files = [];
     let total = 0;

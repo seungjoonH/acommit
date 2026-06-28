@@ -21,7 +21,7 @@ describe('buildPromptFromDiff', () => {
   test('includes refactor tag heuristic', () => {
     const cfg = normalize({ message: { lang: 'en' } });
     const { system } = buildPromptFromDiff(cfg, '');
-    expect(system).toContain('refactor: extract/move/reorganize logic');
+    expect(system).toContain('refactor: extract/move/reorganize');
   });
 
   test('per-group prompt includes tag heuristics and multi-line bullet rules', () => {
@@ -30,7 +30,24 @@ describe('buildPromptFromDiff', () => {
       message: { lang: 'ko', lines: 'multi' },
     });
     const { system } = buildPromptFromDiff(cfg, '', [], { perGroup: true, groupFiles: ['a.js'] });
-    expect(system).toContain('refactor: extract/move/reorganize logic');
+    expect(system).toContain('refactor: extract/move/reorganize');
     expect(system).toContain('Do NOT use per-file changelog headers');
+  });
+
+  test('per-group prompt includes plan rationale and tag from plan', () => {
+    const cfg = normalize({
+      grouping: { mode: 'by-similarity' },
+      message: { lang: 'en' },
+      tags: { enabled: true, list: ['docs'] },
+    });
+    const { user } = buildPromptFromDiff(cfg, '', [], {
+      perGroup: true,
+      groupFiles: ['CHANGELOG.en.md', 'CHANGELOG.ko.md'],
+      planGroup: { tag: 'docs', rationale: 'locale pair release notes' },
+    });
+    expect(user).toContain('GROUP INTENT (from plan)');
+    expect(user).toContain('locale pair release notes');
+    expect(user).toContain('REQUIRED TAG (from plan): docs:');
+    expect(user).toContain('Grouping is already fixed');
   });
 });
