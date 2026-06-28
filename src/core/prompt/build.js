@@ -30,10 +30,13 @@ function describeTagHeuristics(cfg) {
   }
   return [
     'Tag selection (use allowed tags ONLY — never invent or use unlisted tags):',
+    allowed.size
+      ? `- CRITICAL: allowed=[${[...allowed].join(', ')}] overrides path/file-type inference — never use an unlisted tag (e.g. docs: when only feat/fix are allowed).`
+      : null,
     '- CRITICAL: code extraction (new helper/validator module + existing file imports it) → refactor on EVERY commit for that extraction (never feat/fix).',
     ...lines,
     allowed.size && !allowed.has('docs')
-      ? '- docs/** paths: if "docs" is not allowed, use feat for new content or fix for corrections.'
+      ? '- docs/** or *.md paths: use feat for new content or fix for corrections (docs: is NOT allowed).'
       : null,
   ].filter(Boolean).join('\n');
 }
@@ -207,13 +210,42 @@ function describeMessageStyle(config) {
   return 'Sentence style: English imperative, e.g. "Add initial setup".';
 }
 
+function sampleSubjectLine(config, tagPart = '') {
+  const lang = config.message?.lang ?? 'ko';
+  const style = config.message?.style ?? 'verb';
+  if (lang === 'ko') {
+    if (style === 'declarative') {
+      return `${tagPart}초기 설정을 추가함`;
+    }
+    return `${tagPart}초기 설정 추가`;
+  }
+  if (style === 'past') {
+    return `${tagPart}Added initial setup`;
+  }
+  return `${tagPart}Add initial setup`;
+}
+
+function describeStyleEnforcement(config) {
+  const lang = config.message?.lang ?? 'ko';
+  const style = config.message?.style ?? 'verb';
+  if (lang === 'ko' && style === 'declarative') {
+    return '- Korean declarative: subject MUST end with ~함, ~습니다, ~됨, or ~임 — never verb-only endings like "추가" without those suffixes.';
+  }
+  if (lang === 'en' && style === 'past') {
+    return '- English past: subject MUST use past tense (e.g. Added, Fixed, Updated).';
+  }
+  if (lang === 'en' && style === 'imperative') {
+    return '- English imperative: subject MUST use base verb form (e.g. Add, Fix, Update) — not past tense.';
+  }
+  return null;
+}
+
 function buildSystemPrompt(config, { perGroup = false } = {}) {
   if (perGroup) {
     const example = describeTagExample(config);
     const tagPart = config.tags?.enabled === false ? '' : example;
-    const sampleSubject = config.message?.lang === 'ko'
-      ? `${tagPart}초기 설정 추가`
-      : `${tagPart}Add initial setup`;
+    const sampleSubject = sampleSubjectLine(config, tagPart);
+    const styleRule = describeStyleEnforcement(config);
 
     const sections = [
       "You are a precise commit message generator.",
@@ -232,7 +264,7 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
       "",
       "Output format (strict — no markdown, no headings):",
       config.message.lines === 'multi'
-        ? "Line 1: subject"
+        ? `Line 1: subject (example: ${sampleSubject})`
         : `Line 1: subject only (example: ${sampleSubject})`,
       ...(config.message.lines === 'multi'
         ? [
@@ -247,9 +279,14 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
         : `git commit -m "<subject>"`,
       "",
       "Rules:",
+      "- Grounding: base the message ONLY on [DIFFERENCES] (+/- hunk lines) for this group.",
+      "- Do NOT infer changes from the file path, parent directories, filename, or extension (e.g. k8s/, migrations/, seed/, .yaml, .sql).",
+      "- Name added/changed functions, classes, or logic from the hunk (e.g. parseDate, Widget, render) when they appear in +/- lines.",
       "- Do not invent changes; only use provided diffs.",
+      styleRule,
       "- Do NOT use ### or markdown.",
       "- Do NOT emit one git add per file.",
+      "- Shell lines MUST start with `git add` or `git commit` — NEVER output a bare file path.",
       "- No commentary before or after the block.",
     ].filter(Boolean);
 
@@ -280,6 +317,7 @@ function buildSystemPrompt(config, { perGroup = false } = {}) {
     config.message?.lines === 'multi'
       ? '- For lines=multi, bullets MUST use `-` prefix in both narrative and git commit -m (\\n between subject and bullets).'
       : null,
+    describeStyleEnforcement(config),
     "- Keep output in the specified language and style.",
     "",
     "At the end, include a shell block wrapped in ```bash ... ``` with executable git commands.",
@@ -344,6 +382,7 @@ export function buildPromptFromDiff(config, diffText, extraPrompts = [], opts = 
         groupHints,
         `- Blocks separated by '${ENTRY_SEPARATOR}'.`,
         "- Blocks marked CONTENT OMITTED include path/metadata only — still commit those files.",
+        "- Describe ONLY what the [DIFFERENCES] hunk shows — never guess from the path or filename.",
         "",
         "# TASK: Generate exactly one commit (subject + shell lines).",
         "",
