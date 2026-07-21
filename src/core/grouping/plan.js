@@ -81,7 +81,7 @@ export async function buildCommitPlan({
       mode: 'by-similarity',
       draft: draft.groups,
     });
-    const { plan, repairs } = repairCommitPlan(parsed, files, draft);
+    const { plan, repairs } = repairCommitPlan(parsed, files, draft, cfg);
     if (repairs.length) {
       plan.draft = draft.groups;
     }

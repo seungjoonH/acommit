@@ -21,10 +21,15 @@ function describePlanConstraints(cfg) {
     '- Order groups: foundational → features → docs/chore.',
   ];
 
-  const pathHints = filteredPathTagEntries(cfg);
-  if (pathHints.length) {
-    lines.push('', 'Path → tag hints (apply when grouping):');
-    for (const [pattern, tag] of pathHints) {
+  const pathTags = filteredPathTagEntries(cfg);
+  if (pathTags.length) {
+    lines.push(
+      '',
+      'Path → required tags:',
+      '- If a file matches one of these patterns, its group tag MUST be that tag.',
+      '- Do not put files requiring different tags in the same tagged group.',
+    );
+    for (const [pattern, tag] of pathTags) {
       lines.push(`- "${pattern}" → tag "${tag}"`);
     }
   }
