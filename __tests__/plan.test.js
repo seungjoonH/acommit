@@ -101,6 +101,44 @@ describe('repairCommitPlan', () => {
     const flat = repaired.groups.flatMap((g) => g.files).sort();
     expect(flat).toEqual(['a.js', 'b.js']);
   });
+
+  test('splits files with forced path tags away from conflicting plan tags', () => {
+    const cfg = {
+      tags: { enabled: true, list: ['docs', 'feat'] },
+      grouping: { mode: 'by-similarity' },
+      ignore: { tagsForPaths: { '*.md': 'docs' } },
+    };
+    const files = ['README.md', 'skills/mykit/SKILL.md', 'src/feature.js'];
+    const draft = buildRulesCommitPlan(files, cfg);
+    const plan = {
+      version: 1,
+      source: 'llm',
+      mode: 'by-similarity',
+      groups: [
+        {
+          files,
+          tag: 'feat',
+          rationale: 'add mykit feature',
+        },
+      ],
+    };
+
+    const { plan: repaired, repairs } = repairCommitPlan(plan, files, draft, cfg);
+    expect(repairs.some((r) => r.includes('forced tag "docs"'))).toBe(true);
+    expect(repaired.groups).toEqual([
+      {
+        files: ['README.md', 'skills/mykit/SKILL.md'],
+        tag: 'docs',
+        rationale: 'add mykit feature; forced by path tag rules',
+      },
+      {
+        files: ['src/feature.js'],
+        tag: 'feat',
+        rationale: 'add mykit feature',
+      },
+    ]);
+    expect(validateCommitGroupPlan(repaired, files, cfg).ok).toBe(true);
+  });
 });
 
 describe('validateCommitGroupPlan', () => {
