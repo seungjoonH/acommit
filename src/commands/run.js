@@ -24,6 +24,7 @@ import { saveSession } from "../utils/result.js";
 import { parseCommitText } from "../utils/parseCommitText.js";
 import { nowStamp } from "../utils/date.js";
 import { readLocale } from "../core/locale.js";
+import { guardSensitiveEnvFiles } from "../core/safety/env-guard.js";
 import { initStrings } from "../ui/init-i18n.js";
 import { ensureWebBuild } from "../utils/webBuild.js";
 import { startServer } from "../web/server.js";
@@ -52,7 +53,7 @@ async function loadPrompts(cwd, cfg) {
   return { extraPrompts, promptsForResult };
 }
 
-async function collectLocalDiff(cwd, cfg, ui, t) {
+async function collectLocalDiff(cwd, cfg, ui, t, locale) {
   const dc = new DiffCollector({
     cwd,
     skip: cfg.diff?.skip ?? [],
@@ -61,6 +62,9 @@ async function collectLocalDiff(cwd, cfg, ui, t) {
   });
   const files = await dc.listFiles();
   if (!files.length) return { files, diffByFile: new Map() };
+
+  const envGuard = await guardSensitiveEnvFiles({ cwd, files, locale });
+  if (!envGuard.ok) return { files: [], diffByFile: new Map(), aborted: true };
 
   ui.info(`\n[acommit] ${t.cli.processing(files.length)}\n`);
   ui.startFiles(files.length);
@@ -123,7 +127,8 @@ export async function run() {
   const t = initStrings(locale);
   const { extraPrompts, promptsForResult } = await loadPrompts(cwd, cfg);
 
-  const { files, diffByFile } = await collectLocalDiff(cwd, cfg, ui, t);
+  const { files, diffByFile, aborted } = await collectLocalDiff(cwd, cfg, ui, t, locale);
+  if (aborted) return;
   if (!files.length) return ui.note(`[acommit] ${t.cli.noChanges}`);
 
   let clientInfo = null;
