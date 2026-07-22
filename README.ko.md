@@ -34,7 +34,7 @@ ACOMMIT_OPENROUTER_API_KEY=your_key_here
 ```
 
 > [!WARNING]
-> `.env`를 반드시 `.gitignore`에 추가하세요!
+> `.env`를 반드시 `.gitignore`에 추가하세요. `acommit commit`은 민감한 `.env` 계열 파일이 커밋 후보에 있으면 diff 내용을 읽기 전에 중단하고 `.gitignore` 보호 규칙 추가 여부를 확인합니다.
 
 ### 3) 규칙 파일 생성
 
@@ -72,6 +72,12 @@ acommit commit
 ```
 
 현재 변경사항 (`git diff`)을 분석하여 **커밋 요약 초안**을 작성합니다. 완료 후 결과 뷰어가 자동으로 브라우저에 열립니다. `Ctrl+C`로 서버를 종료합니다.
+
+민감 정보와 생성 산출물은 기본적으로 안전하게 처리합니다.
+
+- `.env`, `.env.local`, `.env.production` 등 민감한 환경 파일은 diff 수집 전에 감지하고 중단합니다.
+- `.env.example`, `.env.sample`, `.env.template` 같은 공유용 템플릿 파일은 허용합니다.
+- `node_modules` / `.pnpm` 경로는 `.gitignore` 설정과 무관하게 커밋 후보에서 제외합니다.
 
 
 ### `acommit prompt`
@@ -135,7 +141,7 @@ acommit init [options]
 #### 흐름
 
 1.  `rules.yml`이 없으면 템플릿을 복사하여 생성합니다.
-2.  `.gitignore`에 `.acommit/` 항목이 없으면 추가합니다.
+2.  `.gitignore`에 `.acommit/` 또는 `.acommit/results/` 항목이 없으면 선택한 설정에 따라 추가합니다.
 
 
 ### `acommit rules`
@@ -302,6 +308,8 @@ acommit --help
 | `untrackedSizeLimit` | 신규 파일 본문의 최대 바이트 수 (초과 시 잘라냄) | `integer` | `512000` |
 | `omitContent` | diff 본문을 LLM에 보내지 않을 파일 패턴 (커밋은 됨) | `array` | `[package-lock.json, *.lock, ...]` |
 | `skip` | acommit에서 완전히 제외할 파일 패턴 (커밋 메시지 생성 안 함) | `array` | `[dist/**]` |
+
+`node_modules` / `.pnpm` 경로는 안전을 위해 `skip` 설정과 별개로 항상 제외됩니다.
 
 
 ### 5. `ignore` (경로별 태그)

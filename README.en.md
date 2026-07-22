@@ -34,7 +34,7 @@ ACOMMIT_OPENROUTER_API_KEY=your_key_here
 ```
 
 > [!WARNING]
-> Make sure to add `.env` to `.gitignore` to prevent exposing your API keys!
+> Make sure to add `.env` to `.gitignore` to prevent exposing your API keys. `acommit commit` stops before reading diff contents when sensitive `.env` files are commit candidates and asks whether to add protective `.gitignore` rules.
 
 ### 3) Create Rules File
 
@@ -72,6 +72,12 @@ acommit commit
 ```
 
 Analyzes current changes (`git diff`) and drafts **commit message summaries**. After completion, the result viewer opens automatically in your browser. Press `Ctrl+C` to stop the server.
+
+Sensitive files and generated dependency output are handled defensively.
+
+- Sensitive environment files such as `.env`, `.env.local`, and `.env.production` are detected before diff collection and stop the run.
+- Shareable templates such as `.env.example`, `.env.sample`, and `.env.template` remain allowed.
+- `node_modules` / `.pnpm` paths are excluded from commit candidates regardless of `.gitignore` configuration.
 
 
 ### `acommit prompt`
@@ -135,7 +141,7 @@ Creates the `.acommit/rules.yml` config file and updates `.gitignore` to exclude
 #### Flow
 
 1.  If `rules.yml` does not exist, copies the template to create it.
-2.  Adds `.acommit/` to `.gitignore` if not already present.
+2.  Adds `.acommit/` or `.acommit/results/` to `.gitignore` according to the selected setup option.
 
 
 ### `acommit rules`
@@ -302,6 +308,8 @@ If `style` is not set, it is derived automatically from `case` + `bracket`. Defa
 | `untrackedSizeLimit` | Max bytes for new file content sent to LLM (truncated beyond) | `integer` | `512000` |
 | `omitContent` | Glob patterns whose diff body is omitted from LLM input (file is still committed) | `array` | `[package-lock.json, *.lock, ...]` |
 | `skip` | Glob patterns fully excluded from acommit (no commit message generated) | `array` | `[dist/**]` |
+
+`node_modules` / `.pnpm` paths are always excluded as a safety guard, separate from `skip`.
 
 
 ### 5. `ignore` (path tags)

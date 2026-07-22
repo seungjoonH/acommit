@@ -32,6 +32,10 @@ acommit commit
 | English | [README.en.md](https://www.npmjs.com/package/acommit/file/README.en.md) | [README.en.md](https://github.com/seungjoonH/acommit/blob/main/README.en.md) |
 | 한국어 | [README.ko.md](https://www.npmjs.com/package/acommit/file/README.ko.md) | [README.ko.md](https://github.com/seungjoonH/acommit/blob/main/README.ko.md) |
 
+## Safety
+
+`acommit commit` stops before reading sensitive `.env` files, keeps env templates such as `.env.example` commit-friendly, and hard-excludes `node_modules` / `.pnpm` paths from diff collection.
+
 ## License
 
 MIT © 2025 SeungjoonH
