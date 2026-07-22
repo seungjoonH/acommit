@@ -2,6 +2,10 @@ import { createServer } from '../src/web/server.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 let server;
 let port;
@@ -118,6 +122,49 @@ describe('GET /api/schema', () => {
     expect(body.grouping.modes).toContain('per-file');
     expect(body.llm.catalog.routes.direct.label).toBe('Direct API');
     expect(body.llm.catalog.vendors.openrouter).toBeTruthy();
+  });
+});
+
+describe('POST /api/execute', () => {
+  test('skips ignored-only git add and its paired commit', async () => {
+    await execFileAsync('git', ['init'], { cwd: tmpDir });
+    await fs.writeFile(path.join(tmpDir, '.gitignore'), 'node_modules/\n', 'utf8');
+    await fs.mkdir(path.join(tmpDir, 'node_modules'), { recursive: true });
+
+    const res = await fetch(`${base}/api/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commands: ['git add node_modules', 'git commit -m "chore: deps"'] }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.aborted).toBe(false);
+    expect(body.results[0].ok).toBe(true);
+    expect(body.results[0].stdout).toContain('자동 제외');
+    expect(body.results[0].stdout).toContain('node_modules');
+    expect(body.results[1].ok).toBe(true);
+    expect(body.results[1].stdout).toContain('건너뜀');
+  });
+
+  test('removes ignored paths from mixed git add commands', async () => {
+    await fs.mkdir(path.join(tmpDir, 'src'), { recursive: true });
+    await fs.writeFile(path.join(tmpDir, 'src/a.js'), 'console.log("a");\n', 'utf8');
+
+    const res = await fetch(`${base}/api/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commands: ['git add node_modules src/a.js'] }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.aborted).toBe(false);
+    expect(body.results[0].ok).toBe(true);
+    expect(body.results[0].stdout).toContain('자동 제외');
+
+    const { stdout } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: tmpDir });
+    expect(stdout.trim().split('\n')).toContain('src/a.js');
   });
 });
 
