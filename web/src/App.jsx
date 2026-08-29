@@ -38,7 +38,7 @@ const DEFAULTS = {
   },
   conventional: { compatible: false, scope: { enabled: false, inferFromPath: true } },
   prompts: [],
-  llm: { provider: 'gemini', model: 'gemini-2.5-flash', maxOutputTokens: 4000, maxPromptTokens: 200000 },
+  llm: { maxOutputTokens: 4000, maxPromptTokens: 200000 },
   ignore: {
     tagsForPaths: {
       'docs/**': 'docs',
