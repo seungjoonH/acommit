@@ -6,6 +6,7 @@ import {
   modelOptions,
   ROUTES,
 } from '../core/llm/catalog.js';
+import { listProviderModels } from '../core/llm/provider-env.js';
 import { selectOption, clack } from './tui.js';
 
 function buildMessage({ step, subtitle, title }) {
@@ -52,6 +53,7 @@ export async function pickLlmConfig({
   step,
   current,
   labels = {},
+  cwd = process.cwd(),
 } = {}) {
   const parsed = parseLlmConfig(current);
   const connection = labels.connection ?? 'Connection';
@@ -85,20 +87,10 @@ export async function pickLlmConfig({
   });
   if (!vendor) return null;
 
-  let customVendor = parsed.customVendor;
-  if (vendor === CUSTOM_OPTION) {
-    customVendor = await pickText({
-      session,
-      step,
-      subtitle: route === 'openrouter' ? customVendorOpenRouter : customVendorDirect,
-      placeholder: route === 'openrouter' ? 'mistralai' : 'claude',
-      initialValue: customVendor,
-      required,
-    });
-    if (!customVendor) return null;
-  }
-
-  const models = modelOptions(route, vendor, { customLabel });
+  const provider = route === 'openrouter' ? 'openrouter' : vendor;
+  let discovered = [];
+  try { discovered = await listProviderModels(cwd, provider); } catch { /* custom model remains available */ }
+  const models = modelOptions(discovered, { customLabel });
   const model = await selectOption({
     session,
     step,
@@ -110,11 +102,7 @@ export async function pickLlmConfig({
 
   let resolvedModel = model;
   if (model === CUSTOM_OPTION) {
-    const modelPlaceholder = route === 'openrouter'
-      ? (customVendor ? `${customVendor}/model-id` : 'vendor/model-id')
-      : route === 'direct' && vendor === CUSTOM_OPTION
-        ? 'model-id'
-        : 'gemini-2.5-flash';
+    const modelPlaceholder = route === 'openrouter' ? 'vendor/model-id' : 'model-id';
     resolvedModel = await pickText({
       session,
       step,
@@ -130,6 +118,5 @@ export async function pickLlmConfig({
     route,
     vendor,
     model: resolvedModel,
-    customVendor,
   });
 }

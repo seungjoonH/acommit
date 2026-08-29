@@ -2,10 +2,8 @@ import OpenAI from 'openai';
 import { env } from '../../utils/env.js';
 import logger from '../../utils/logger.js';
 
-const DEFAULT_MODEL = 'gpt-4o';
-
-export default function createOpenAIClient({ model: moduleModel } = {}) {
-  const apiKey = env('OPENAI_API_KEY');
+export default function createOpenAIClient({ model: moduleModel, apiKey: suppliedApiKey } = {}) {
+  const apiKey = suppliedApiKey || env('OPENAI_API_KEY');
   if (!apiKey) {
     const suggestion = 'Add OPENAI_API_KEY or ACOMMIT_OPENAI_API_KEY to your .env file.';
     logger.error(`OPENAI_API_KEY is not set. ${suggestion}`, { exit: false });
@@ -15,7 +13,7 @@ export default function createOpenAIClient({ model: moduleModel } = {}) {
   const client = new OpenAI({ apiKey });
 
   function pickModel(optsModel) {
-    return optsModel || moduleModel || env('OPENAI_MODEL') || DEFAULT_MODEL;
+    return optsModel || moduleModel || env('OPENAI_MODEL') || null;
   }
 
   async function gen(prompt, opts = {}) {

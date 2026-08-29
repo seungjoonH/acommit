@@ -12,6 +12,7 @@ import { pickLlmConfig } from '../ui/llm-pick.js';
 import { initStrings } from '../ui/init-i18n.js';
 import { createTuiSession, pc } from '../ui/tui.js';
 import logger from '../utils/logger.js';
+import { writeLocalSettings, readLocalSettings } from '../core/settings/local.js';
 
 const RULES_DIR = path.join(process.cwd(), '.acommit');
 const RULES_PATH = path.join(RULES_DIR, 'rules.yml');
@@ -40,14 +41,17 @@ function validateLlmFlags({ provider, model }) {
     logger.error(`Unknown provider '${provider}'. Supported: gemini, openai, openrouter`);
     return null;
   }
-  if (!provider) return null;
-  if (model) return { provider: provider.toLowerCase(), model };
-  return resolveLlmConfig(parseLlmConfig({ provider }));
+  if (!provider || !model) {
+    logger.error('Non-interactive model selection requires both --provider and --model.');
+    return null;
+  }
+  return { provider: provider.toLowerCase(), model };
 }
 
 export async function modelCommand(opts = {}) {
   const rules = await loadRules();
-  const current = rules?.llm || {};
+  const local = await readLocalSettings(process.cwd());
+  const current = { ...(rules?.llm || {}), ...(local.api || {}) };
   const locale = await readLocale();
   const t = initStrings(locale);
 
@@ -67,8 +71,7 @@ export async function modelCommand(opts = {}) {
       return;
     }
 
-    const next = { ...rules, llm: { ...(rules.llm || {}), ...llm } };
-    await saveRules(next);
+    await writeLocalSettings(process.cwd(), { api: llm });
 
     const hint = apiKeyHint(llm);
     const summary = `${llm.provider} / ${llm.model}. ${hint}`;
@@ -79,8 +82,7 @@ export async function modelCommand(opts = {}) {
     return;
   }
 
-  const next = { ...rules, llm: { ...(rules.llm || {}), ...llm } };
-  await saveRules(next);
+  await writeLocalSettings(process.cwd(), { api: llm });
 
   const hint = apiKeyHint(llm);
   const summary = `${llm.provider} / ${llm.model}. ${hint}`;

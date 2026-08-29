@@ -28,3 +28,4 @@ examples/screenshot-demo/
 docs/
 .claude/
 .acommit/results/
+.acommit/settings.local.yml
