@@ -2,6 +2,22 @@
 
 ---
 
+## v0.3.2 — 2026-07-21
+
+### 보안 및 안전성
+
+- **`.env` 커밋 방지** — `.env`, `.env.local`, `.env.prod`, `.env.dev`, `.env.development`, `.env.production` 등 민감한 환경 파일이 커밋 후보에 있으면 diff 본문을 읽기 전에 중단하고 `.gitignore` 보호 규칙 추가 여부를 확인
+- **공유용 env 템플릿 허용** — `.env.example`, `.env.sample`, `.env.template`, `.env.production.example` 같은 예시 파일은 커밋 가능하도록 예외 처리
+- **`node_modules` hard exclude** — `.gitignore` 설정이 없거나 불완전해도 `node_modules` / `.pnpm` 경로는 diff 수집 단계에서 무조건 제외
+
+### 결과 실행
+
+- **ignored 경로 자동 제외** — 결과 뷰어에서 `git add node_modules src/a.js`처럼 ignored 경로가 섞여 있으면 ignored 경로만 빼고 나머지 파일만 staging
+- **ignored-only 커밋 자동 스킵** — 커밋 대상이 `node_modules`처럼 ignored 경로뿐이면 `git commit`을 실행하지 않고 해당 커밋을 건너뜀
+- **친절한 Git 에러 메시지** — `.gitignore` 때문에 `git add`가 실패하는 경우 Git 원문 대신 원인과 다음 행동을 설명하는 메시지 표시
+
+---
+
 ## v0.3.1 — 2026-06-28
 
 ### 버그 수정

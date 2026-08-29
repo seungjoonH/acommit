@@ -2,6 +2,22 @@
 
 ---
 
+## v0.3.2 — 2026-07-21
+
+### Security & Safety
+
+- **Prevent `.env` commits** — stops before reading diff contents when sensitive environment files such as `.env`, `.env.local`, `.env.prod`, `.env.dev`, `.env.development`, or `.env.production` are commit candidates, then asks whether to add protective `.gitignore` rules
+- **Allow shareable env templates** — keeps `.env.example`, `.env.sample`, `.env.template`, `.env.production.example`, and similar template files commit-friendly
+- **Hard-exclude `node_modules`** — excludes `node_modules` / `.pnpm` paths during diff collection even when `.gitignore` is missing or incomplete
+
+### Result Execution
+
+- **Auto-remove ignored paths** — when result execution sees mixed commands like `git add node_modules src/a.js`, ignored paths are removed and the remaining files are staged
+- **Skip ignored-only commits** — if a commit contains only ignored paths such as `node_modules`, the paired `git commit` is skipped instead of failing repeatedly
+- **Friendlier Git errors** — `.gitignore`-related `git add` failures are rewritten with a clear explanation and next steps
+
+---
+
 ## v0.3.1 — 2026-06-28
 
 ### Bug Fixes
