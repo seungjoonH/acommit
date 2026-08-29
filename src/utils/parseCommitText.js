@@ -33,17 +33,17 @@ export function parseCommitText(raw, groupFiles = [], cfg = {}) {
       return l;
     });
 
+  const subject = msgLines[0] ?? '';
+  const body = msgLines.slice(1)
+    .filter(l => /^[-*]\s/.test(l))
+    .map(l => l.replace(/^[-*]\s+/, ''));
+
   const commitLine = shellLines.find((l) => /^git commit\b/.test(l))
     ?? (subject ? `git commit -m "${subject.replace(/"/g, '\\"')}"` : null);
 
   const shell = groupFiles.length && commitLine
     ? buildCommitShellLines(groupFiles, commitLine)
     : shellLines;
-
-  const subject = msgLines[0] ?? '';
-  const body = msgLines.slice(1)
-    .filter(l => /^[-*]\s/.test(l))
-    .map(l => l.replace(/^[-*]\s+/, ''));
 
   // Extract tag from subject using known tag list
   let tag = null;
