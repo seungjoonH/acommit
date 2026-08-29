@@ -28,6 +28,14 @@ export function buildRulesCommitPlan(files, cfg) {
   };
 }
 
+function fallbackToDraftPlan(draft, reason) {
+  return {
+    ...draft,
+    source: 'rules',
+    repairs: [`used heuristic draft because LLM grouping plan failed: ${reason}`],
+  };
+}
+
 /**
  * Build commit grouping plan.
  * - Structural modes → rules only (no LLM).
@@ -81,12 +89,12 @@ export async function buildCommitPlan({
       mode: 'by-similarity',
       draft: draft.groups,
     });
-    const { plan, repairs } = repairCommitPlan(parsed, files, draft);
+    const { plan, repairs } = repairCommitPlan(parsed, files, draft, cfg);
     if (repairs.length) {
       plan.draft = draft.groups;
     }
     return plan;
   } catch (err) {
-    throw new Error(`invalid grouping plan: ${err.message}`);
+    return fallbackToDraftPlan(draft, err?.message || String(err));
   }
 }

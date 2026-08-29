@@ -34,7 +34,7 @@ ACOMMIT_OPENROUTER_API_KEY=your_key_here
 ```
 
 > [!WARNING]
-> Make sure to add `.env` to `.gitignore` to prevent exposing your API keys!
+> Make sure to add `.env` to `.gitignore` to prevent exposing your API keys. `acommit commit` stops before reading diff contents when sensitive `.env` files are commit candidates and asks whether to add protective `.gitignore` rules.
 
 ### 3) Create Rules File
 
@@ -49,6 +49,22 @@ acommit commit
 ```
 
 Results are saved to `.acommit/results/commits/`.
+
+### Use as an Agent Plugin
+
+The same plugin bundle supports Claude Code, Codex, and Cursor.
+
+| Workflow | Claude Code | Codex | Cursor |
+| --- | --- | --- | --- |
+| Initialize | `/acommit:init` | `$init` | `/init` |
+| Create commits | `/acommit:commit` | `$commit` | `/commit` |
+| Configure | `/acommit:config` | `$config` | `/config` |
+| Infer rules from Git history | `/acommit:infer-rules` | `$infer-rules` | `/infer-rules` |
+| View results | `/acommit:result` | `$result` | `/result` |
+
+The plugin asks once whether commits should use the current Agent or an acommit API provider. Personal choices live in gitignored `.acommit/settings.local.yml`, while shared conventions remain in `.acommit/rules.yml`. Direct `acommit commit` uses the API for that invocation without changing the plugin backend.
+
+For local testing, use `claude --plugin-dir /path/to/acommit` or `cursor agent --plugin-dir /path/to/acommit`. Codex uses the bundled `.codex-plugin/plugin.json` manifest.
 
 <br />
 
@@ -72,6 +88,12 @@ acommit commit
 ```
 
 Analyzes current changes (`git diff`) and drafts **commit message summaries**. After completion, the result viewer opens automatically in your browser. Press `Ctrl+C` to stop the server.
+
+Sensitive files and generated dependency output are handled defensively.
+
+- Sensitive environment files such as `.env`, `.env.local`, and `.env.production` are detected before diff collection and stop the run.
+- Shareable templates such as `.env.example`, `.env.sample`, and `.env.template` remain allowed.
+- `node_modules` / `.pnpm` paths are excluded from commit candidates regardless of `.gitignore` configuration.
 
 
 ### `acommit prompt`
@@ -109,7 +131,7 @@ Select the **LLM backend** for commit message generation.
 | Option | Description | Type |
 | :--- | :--- | :--- |
 | `-p, --provider <name>` | Directly set the LLM provider (`gemini` \| `openai` \| `openrouter`). | optional |
-| `-m, --model <id>` | Specify the model ID directly (e.g. `gemini-2.5-flash`, `google/gemini-2.5-flash`). | optional |
+| `-m, --model <id>` | Specify a model ID returned by the provider. | optional |
 
 #### Flow
 
@@ -135,7 +157,7 @@ Creates the `.acommit/rules.yml` config file and updates `.gitignore` to exclude
 #### Flow
 
 1.  If `rules.yml` does not exist, copies the template to create it.
-2.  Adds `.acommit/` to `.gitignore` if not already present.
+2.  Adds `.acommit/` or `.acommit/results/` to `.gitignore` according to the selected setup option.
 
 
 ### `acommit rules`
@@ -303,6 +325,8 @@ If `style` is not set, it is derived automatically from `case` + `bracket`. Defa
 | `omitContent` | Glob patterns whose diff body is omitted from LLM input (file is still committed) | `array` | `[package-lock.json, *.lock, ...]` |
 | `skip` | Glob patterns fully excluded from acommit (no commit message generated) | `array` | `[dist/**]` |
 
+`node_modules` / `.pnpm` paths are always excluded as a safety guard, separate from `skip`.
+
 
 ### 5. `ignore` (path tags)
 
@@ -335,12 +359,12 @@ ignore:
 | Key | Description | Type | Default |
 | :--- | :--- | :--- | :--- |
 | `provider` | LLM provider | `string` | `"gemini"` (`gemini` \| `openai` \| `openrouter`) |
-| `model` | Model name | `string` | `"gemini-2.5-flash"` |
+| `model` | Model name (legacy compatibility) | `string` | none |
 | `maxPromptTokens` | Prompt token cap | `integer` | `200000` |
 | `maxOutputTokens` | Output token cap | `integer` | `4000` |
 
 > [!TIP]
-> Run `acommit model` to select a provider and model interactively — it saves directly to `rules.yml`.
+> `acommit model` discovers models through the provider API and saves the selection to personal `.acommit/settings.local.yml`. Existing `llm.provider/model` values in `rules.yml` are read only for migration.
 
 
 ### 7. `conventional`
@@ -368,7 +392,7 @@ ignore:
 ## 4. Environment Variables & API Keys
 
 > [!NOTE]
-> Provider and model are configured in `.acommit/rules.yml` under the `llm` section. Only API keys go in `.env`.
+> Provider and model are stored in `.acommit/settings.local.yml`. API keys remain in the environment or an ignored `.env` file.
 
 ### 1) `.env` Template
 
@@ -396,7 +420,7 @@ ACOMMIT_OPENROUTER_API_KEY=
 
     1.  Visit [OpenRouter](https://openrouter.ai/).
     2.  Save your key as `ACOMMIT_OPENROUTER_API_KEY`.
-    3.  Set `llm.provider: openrouter` and `llm.model: google/gemini-2.5-flash` (or any supported model) in `rules.yml`.
+    3.  Run `acommit model` and select OpenRouter plus a model returned for the configured key.
 
 <br />
 

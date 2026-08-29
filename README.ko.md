@@ -34,7 +34,7 @@ ACOMMIT_OPENROUTER_API_KEY=your_key_here
 ```
 
 > [!WARNING]
-> `.env`를 반드시 `.gitignore`에 추가하세요!
+> `.env`를 반드시 `.gitignore`에 추가하세요. `acommit commit`은 민감한 `.env` 계열 파일이 커밋 후보에 있으면 diff 내용을 읽기 전에 중단하고 `.gitignore` 보호 규칙 추가 여부를 확인합니다.
 
 ### 3) 규칙 파일 생성
 
@@ -49,6 +49,22 @@ acommit commit
 ```
 
 결과는 `.acommit/results/commits/` 에 저장됩니다.
+
+### Agent 플러그인으로 사용
+
+동일한 플러그인 번들로 Claude Code, Codex, Cursor를 지원합니다.
+
+| 작업 | Claude Code | Codex | Cursor |
+| --- | --- | --- | --- |
+| 초기화 | `/acommit:init` | `$init` | `/init` |
+| 변경 사항 커밋 | `/acommit:commit` | `$commit` | `/commit` |
+| 설정 | `/acommit:config` | `$config` | `/config` |
+| Git 이력에서 규칙 추론 | `/acommit:infer-rules` | `$infer-rules` | `/infer-rules` |
+| 결과 확인 | `/acommit:result` | `$result` | `/result` |
+
+플러그인은 최초 한 번 현재 Agent 또는 acommit API 중 커밋 엔진을 선택합니다. 개인 설정은 Git에서 제외되는 `.acommit/settings.local.yml`에, 공유 커밋 규칙은 `.acommit/rules.yml`에 저장됩니다. CLI의 `acommit commit`은 플러그인 기본 엔진을 바꾸지 않고 해당 실행에서 API를 사용합니다.
+
+Claude Code에서 로컬 테스트할 때는 `claude --plugin-dir /path/to/acommit`, Cursor Agent에서는 `cursor agent --plugin-dir /path/to/acommit`을 사용합니다. Codex는 포함된 `.codex-plugin/plugin.json` 매니페스트를 사용합니다.
 
 <br />
 
@@ -72,6 +88,12 @@ acommit commit
 ```
 
 현재 변경사항 (`git diff`)을 분석하여 **커밋 요약 초안**을 작성합니다. 완료 후 결과 뷰어가 자동으로 브라우저에 열립니다. `Ctrl+C`로 서버를 종료합니다.
+
+민감 정보와 생성 산출물은 기본적으로 안전하게 처리합니다.
+
+- `.env`, `.env.local`, `.env.production` 등 민감한 환경 파일은 diff 수집 전에 감지하고 중단합니다.
+- `.env.example`, `.env.sample`, `.env.template` 같은 공유용 템플릿 파일은 허용합니다.
+- `node_modules` / `.pnpm` 경로는 `.gitignore` 설정과 무관하게 커밋 후보에서 제외합니다.
 
 
 ### `acommit prompt`
@@ -109,7 +131,7 @@ acommit model [options]
 | 옵션 | 설명 | 유형 |
 | :--- | :--- | :--- |
 | `-p, --provider <name>` | 사용할 LLM 제공자 (`gemini` \| `openai` \| `openrouter`)를 직접 선택합니다. | optional |
-| `-m, --model <id>` | 모델 ID를 직접 지정합니다. (예: `gemini-2.5-flash`, `google/gemini-2.5-flash`) | optional |
+| `-m, --model <id>` | Provider가 제공하는 모델 ID를 직접 지정합니다. | optional |
 
 #### 흐름
 
@@ -135,7 +157,7 @@ acommit init [options]
 #### 흐름
 
 1.  `rules.yml`이 없으면 템플릿을 복사하여 생성합니다.
-2.  `.gitignore`에 `.acommit/` 항목이 없으면 추가합니다.
+2.  `.gitignore`에 `.acommit/` 또는 `.acommit/results/` 항목이 없으면 선택한 설정에 따라 추가합니다.
 
 
 ### `acommit rules`
@@ -303,6 +325,8 @@ acommit --help
 | `omitContent` | diff 본문을 LLM에 보내지 않을 파일 패턴 (커밋은 됨) | `array` | `[package-lock.json, *.lock, ...]` |
 | `skip` | acommit에서 완전히 제외할 파일 패턴 (커밋 메시지 생성 안 함) | `array` | `[dist/**]` |
 
+`node_modules` / `.pnpm` 경로는 안전을 위해 `skip` 설정과 별개로 항상 제외됩니다.
+
 
 ### 5. `ignore` (경로별 태그)
 
@@ -335,12 +359,12 @@ ignore:
 | 키 | 설명 | 유형 | 기본값 |
 | :--- | :--- | :--- | :--- |
 | `provider` | LLM 프로바이더 | `string` | `"gemini"` (`gemini` \| `openai` \| `openrouter`) |
-| `model` | 사용할 모델 이름 | `string` | `"gemini-2.5-flash"` |
+| `model` | 사용할 모델 이름(레거시 호환) | `string` | 없음 |
 | `maxPromptTokens` | 프롬프트 토큰 상한 | `integer` | `200000` |
 | `maxOutputTokens` | 출력 토큰 상한 | `integer` | `4000` |
 
 > [!TIP]
-> `acommit model` 명령어를 사용하면 대화형으로 `provider`와 `model`을 설정하고 `rules.yml`에 자동 저장됩니다.
+> `acommit model`은 Provider API에서 모델을 조회하고 개인 설정인 `.acommit/settings.local.yml`에 저장합니다. `rules.yml`의 기존 `llm.provider/model`은 마이그레이션용으로만 읽습니다.
 
 
 ### 7. `conventional` (Conventional Commits)
@@ -396,7 +420,7 @@ ACOMMIT_OPENROUTER_API_KEY=
 
     1.  [OpenRouter](https://openrouter.ai/)를 방문합니다.
     2.  키를 `ACOMMIT_OPENROUTER_API_KEY`에 저장합니다.
-    3.  `rules.yml`에서 `llm.provider: openrouter`, `llm.model: google/gemini-2.5-flash` 등으로 설정합니다.
+    3.  `acommit model`로 OpenRouter와 조회된 모델을 선택합니다.
 
 <br />
 

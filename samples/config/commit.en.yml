@@ -94,7 +94,6 @@ ignore:
     "*.lock": "chore"
 
 llm:
-  provider: "gemini"         # "gemini" or "openai"
   maxPromptTokens: 200000    # Safety cap for prompt tokens
   maxOutputTokens: 4000      # Safety cap for output tokens
 

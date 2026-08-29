@@ -19,9 +19,13 @@ dist/
 # Rules UI dev deps
 web/node_modules/
 
+# Local port manager (generated per machine)
+scripts/port.sh
+
 # Internal — local experiments only (not GitHub, not npm)
 experiments/
 examples/screenshot-demo/
 docs/
 .claude/
 .acommit/results/
+.acommit/settings.local.yml

@@ -1,0 +1,4 @@
+interface:
+  display_name: "acommit Result"
+  short_description: "Explain Agent or API commit results"
+  default_prompt: "Use $result to explain the latest acommit result."

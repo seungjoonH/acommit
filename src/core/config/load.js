@@ -35,3 +35,30 @@ export async function loadConfig(cwd = process.cwd()) {
   }
   catch { return normalize({}); }
 }
+
+function deepMerge(target, patch) {
+  const out = { ...target };
+  for (const [key, value] of Object.entries(patch)) {
+    out[key] = (value && typeof value === "object" && !Array.isArray(value))
+      ? deepMerge(target?.[key] && typeof target[key] === "object" ? target[key] : {}, value)
+      : value;
+  }
+  return out;
+}
+
+// Merge a partial patch into the raw rules.yml (not the normalized/defaulted
+// config), so fields the user hasn't set stay absent from the file.
+export async function saveConfig(cwd, patch) {
+  const dir = path.join(cwd, ".acommit");
+  const file = path.join(dir, "rules.yml");
+  let raw = {};
+  try {
+    raw = YAML.parse(await fs.readFile(file, "utf8")) || {};
+  } catch {
+    // no existing rules.yml — start fresh
+  }
+  const merged = deepMerge(raw, patch);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(file, YAML.stringify(merged), "utf8");
+  return normalize(merged);
+}

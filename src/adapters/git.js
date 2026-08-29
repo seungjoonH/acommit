@@ -28,6 +28,24 @@ export class Git {
 
   async diff(file)       { return this._run("diff", "--", file); }
   async diffCached(file) { return this._run("diff", "--cached", "--", file); }
+  async history({ maxCount = 200, since } = {}) {
+    const args = [
+      "log",
+      "--no-merges",
+      `--max-count=${maxCount}`,
+      "--format=__ACOMMIT_RECORD__%n%H%n%an%n%ae%n%s%n%b%n__ACOMMIT_FILES__",
+      "--name-only",
+    ];
+    if (since) args.splice(3, 0, `--since=${since}`);
+    return this._run(...args);
+  }
+
+  async add(files)     { return this._run("add", "--", ...files); }
+  async commit(message) { return this._run("commit", "-m", message); }
+  async commitOnly(message, files) {
+    return this._run("commit", "--only", "-m", message, "--", ...files);
+  }
+  async push()          { return this._run("push"); }
 }
 
 export const createGit = (cwd = process.cwd()) => new Git(cwd);

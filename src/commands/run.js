@@ -24,10 +24,14 @@ import { saveSession } from "../utils/result.js";
 import { parseCommitText } from "../utils/parseCommitText.js";
 import { nowStamp } from "../utils/date.js";
 import { readLocale } from "../core/locale.js";
+import { guardSensitiveEnvFiles } from "../core/safety/env-guard.js";
 import { initStrings } from "../ui/init-i18n.js";
 import { ensureWebBuild } from "../utils/webBuild.js";
 import { startServer } from "../web/server.js";
 import logger from '../utils/logger.js';
+import { effectiveLocalSettings } from '../core/settings/local.js';
+import { validateGeneratedCommit } from '../core/message/validate.js';
+import { providerSecret } from '../core/llm/provider-env.js';
 
 async function loadPrompts(cwd, cfg) {
   const oneTimePath = path.join(cwd, '.acommit', 'last_prompt.json');
@@ -52,7 +56,7 @@ async function loadPrompts(cwd, cfg) {
   return { extraPrompts, promptsForResult };
 }
 
-async function collectLocalDiff(cwd, cfg, ui, t) {
+async function collectLocalDiff(cwd, cfg, ui, t, locale) {
   const dc = new DiffCollector({
     cwd,
     skip: cfg.diff?.skip ?? [],
@@ -61,6 +65,9 @@ async function collectLocalDiff(cwd, cfg, ui, t) {
   });
   const files = await dc.listFiles();
   if (!files.length) return { files, diffByFile: new Map() };
+
+  const envGuard = await guardSensitiveEnvFiles({ cwd, files, locale });
+  if (!envGuard.ok) return { files: [], diffByFile: new Map(), aborted: true };
 
   ui.info(`\n[acommit] ${t.cli.processing(files.length)}\n`);
   ui.startFiles(files.length);
@@ -79,11 +86,11 @@ function llmLabel(cfg) {
   return model ? `${provider} / ${model}` : provider;
 }
 
-async function ensureClient(cfg, ui, t) {
+async function ensureClient(cfg, ui, t, cwd) {
   const label = llmLabel(cfg);
   ui.startSpinner(t.cli.initClient(label));
   const provider = (cfg.llm && cfg.llm.provider) || 'gemini';
-  const client = await createLLMClient(provider, { model: cfg.llm && cfg.llm.model });
+  const client = await createLLMClient(provider, { model: cfg.llm && cfg.llm.model, apiKey: await providerSecret(cwd, provider) });
   ui.stopSpinner(client ? t.cli.ready : t.cli.failed);
   if (!client) {
     const pkgByProvider = { openai: 'openai', openrouter: 'openai', gemini: '@google/generative-ai' };
@@ -119,18 +126,21 @@ export async function run() {
   const cwd = process.cwd();
   const ui = new ProgressUI();
   const cfg = await loadConfig(cwd);
+  const { effective } = await effectiveLocalSettings(cwd, cfg);
+  cfg.llm = { ...cfg.llm, ...effective.api };
   const locale = await readLocale(cwd);
   const t = initStrings(locale);
   const { extraPrompts, promptsForResult } = await loadPrompts(cwd, cfg);
 
-  const { files, diffByFile } = await collectLocalDiff(cwd, cfg, ui, t);
+  const { files, diffByFile, aborted } = await collectLocalDiff(cwd, cfg, ui, t, locale);
+  if (aborted) return;
   if (!files.length) return ui.note(`[acommit] ${t.cli.noChanges}`);
 
   let clientInfo = null;
   let commitPlan;
 
   if (usesLlmPlan(cfg)) {
-    clientInfo = await ensureClient(cfg, ui, t);
+    clientInfo = await ensureClient(cfg, ui, t, cwd);
     if (!clientInfo) return ui.note(`[acommit] ${t.cli.noClient}`);
 
     ui.startSpinner(t.cli.planning);
@@ -191,7 +201,7 @@ export async function run() {
   }
 
   if (!clientInfo) {
-    clientInfo = await ensureClient(cfg, ui, t);
+    clientInfo = await ensureClient(cfg, ui, t, cwd);
     if (!clientInfo) return ui.note(`[acommit] ${t.cli.noClient}`);
   }
 
@@ -225,17 +235,31 @@ export async function run() {
     ui.stopSpinner(t.cli.done);
 
     const parsed = parseCommitText(text, group, cfg);
-    commits.push({ ...parsed, planRationale: planGroup.rationale || null, planTag: planGroup.tag || null });
+    const validation = validateGeneratedCommit(parsed, cfg);
+    if (!validation.ok) {
+      logger.error(`Generated commit message violates rules: ${validation.issues.map((issue) => issue.message).join(' ')}`, { exit: false });
+      return;
+    }
+    commits.push({
+      ...parsed,
+      planRationale: planGroup.rationale || null,
+      planTag: planGroup.tag || null,
+      validation,
+      execution: { committed: false, pushed: false },
+    });
     console.log('\n' + text + '\n');
   }
 
   console.log(chalk.yellow(`[acommit] ${t.cli.tokens}`), totalApproxTokens);
 
   const session = {
+    schemaVersion: 2,
     id: sessionId,
     timestamp: new Date().toISOString(),
+    backend: 'api',
     provider,
     model: modelUsed,
+    agent: null,
     groupingMode: cfg.grouping?.mode ?? 'per-file',
     planSource: commitPlan.source,
     commitPlan,

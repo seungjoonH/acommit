@@ -9,7 +9,14 @@ import { normalize, DEFAULTS } from '../core/config/schema.js';
 import { MESSAGE_STYLES_BY_LANG } from '../core/message/styles.js';
 import { readLocale } from '../core/locale.js';
 import { catalogForApi } from '../core/llm/catalog.js';
-import { isAllowedExecuteCommand } from '../utils/commitShell.js';
+import {
+  extractIgnoredPathsFromGitAddError,
+  formatIgnoredGitAddError,
+  formatIgnoredGitAddSkip,
+  formatSkippedCommitAfterIgnoredAdd,
+  isAllowedExecuteCommand,
+  parseGitAddCommand,
+} from '../utils/commitShell.js';
 
 const execAsync = promisify(execCb);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -134,21 +141,93 @@ async function getSession(cwd, id) {
 
 async function executeCommands(commands, cwd) {
   const results = [];
+  let skipNextCommitForIgnored = null;
+
   for (const command of commands) {
+    if (skipNextCommitForIgnored && /^git commit\b/.test(String(command ?? '').trim())) {
+      results.push({
+        command,
+        stdout: formatSkippedCommitAfterIgnoredAdd(skipNextCommitForIgnored),
+        stderr: '',
+        exitCode: 0,
+        ok: true,
+      });
+      skipNextCommitForIgnored = null;
+      continue;
+    }
+    skipNextCommitForIgnored = null;
+
     if (!isAllowedExecuteCommand(command)) {
       results.push({ command, stdout: '', stderr: 'Blocked: only git restore --staged . / add / commit allowed', exitCode: 1, ok: false });
       return { results, aborted: true };
     }
+    const addPaths = await partitionGitAddPaths(command, cwd);
+    const ignored = addPaths?.ignored ?? [];
+    if (ignored.length) {
+      if (!addPaths.remaining.length) {
+        skipNextCommitForIgnored = ignored;
+        results.push({
+          command,
+          stdout: formatIgnoredGitAddSkip(ignored),
+          stderr: '',
+          exitCode: 0,
+          ok: true,
+        });
+        continue;
+      }
+    }
+
+    const commandToRun = addPaths?.remaining?.length
+      ? `git add ${addPaths.remaining.map(shellQuote).join(' ')}`
+      : command;
+    const prefix = ignored.length ? formatIgnoredGitAddSkip(ignored) : '';
+
     try {
-      const { stdout, stderr } = await execAsync(command, { cwd, timeout: 30_000 });
-      results.push({ command, stdout: stdout.trim(), stderr: stderr.trim(), exitCode: 0, ok: true });
+      const { stdout, stderr } = await execAsync(commandToRun, { cwd, timeout: 30_000 });
+      results.push({
+        command,
+        stdout: [prefix, stdout.trim()].filter(Boolean).join('\n'),
+        stderr: stderr.trim(),
+        exitCode: 0,
+        ok: true,
+      });
     } catch (err) {
       const exitCode = err.code ?? 1;
-      results.push({ command, stdout: (err.stdout ?? '').trim(), stderr: (err.stderr ?? err.message).trim(), exitCode, ok: false });
+      const rawStderr = (err.stderr ?? err.message).trim();
+      const ignoredFromGit = extractIgnoredPathsFromGitAddError(rawStderr);
+      results.push({
+        command,
+        stdout: (err.stdout ?? '').trim(),
+        stderr: ignoredFromGit.length ? formatIgnoredGitAddError(ignoredFromGit) : rawStderr,
+        exitCode,
+        ok: false,
+      });
       return { results, aborted: true };
     }
   }
   return { results, aborted: false };
+}
+
+async function partitionGitAddPaths(command, cwd) {
+  const parsed = parseGitAddCommand(command);
+  if (!parsed || parsed.force || !parsed.paths.length) return null;
+
+  const ignored = [];
+  const remaining = [];
+  for (const filePath of parsed.paths) {
+    try {
+      await execAsync(`git check-ignore -q -- ${shellQuote(filePath)}`, { cwd, timeout: 30_000 });
+      ignored.push(filePath);
+    } catch {
+      // git check-ignore exits non-zero when the path is not ignored.
+      remaining.push(filePath);
+    }
+  }
+  return { ignored, remaining };
+}
+
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
 // ── Server ────────────────────────────────────────────────────

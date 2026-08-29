@@ -1,0 +1,4 @@
+interface:
+  display_name: "acommit Commit"
+  short_description: "Generate and safely execute validated AI commits"
+  default_prompt: "Use $commit to group my changes and generate validated commits."

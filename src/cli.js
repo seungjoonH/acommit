@@ -22,7 +22,23 @@ export async function main(argv = process.argv) {
   program
     .command("commit")
     .description("Analyze local diffs and draft commit messages.")
-    .action(async () => {
+    .option('--headless', 'Run without browser or interactive UI.')
+    .option('--json', 'Write one JSON result to stdout (requires --headless).')
+    .action(async (opts) => {
+      if (opts.json && !opts.headless) throw new Error('--json requires --headless');
+      if (opts.headless) {
+        const { runHeadlessCommit } = await import('./core/commit/headless.js');
+        try {
+          const result = await runHeadlessCommit({ cwd: process.cwd() });
+          if (opts.json) process.stdout.write(`${JSON.stringify({ ok: true, ...result })}\n`);
+          else logger.info(`[acommit] saved ${result.saved || 'no changes'}`);
+        } catch (err) {
+          if (opts.json) process.stdout.write(`${JSON.stringify({ ok: false, error: err?.message || String(err), code: err?.code || null })}\n`);
+          else logger.error(err?.message || String(err), { exit: false });
+          process.exitCode = 1;
+        }
+        return;
+      }
       const mod = await import('./commands/run.js');
       const fn = mod.run || mod.default;
       await fn();
@@ -39,7 +55,7 @@ export async function main(argv = process.argv) {
     .command('model')
     .description('Select LLM route, vendor, and model (direct API or OpenRouter).')
     .option('-p, --provider <name>', 'Runtime provider: gemini | openai | openrouter')
-    .option('-m, --model <id>', 'Model id (e.g. gemini-2.5-flash or google/gemini-2.5-flash)')
+    .option('-m, --model <id>', 'Provider model id (discover interactively or enter explicitly)')
     .action(async (opts) => {
       const mod = await import('./commands/model.js');
       const fn = mod.modelCommand || mod.default;

@@ -2,10 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { env } from '../../utils/env.js';
 import logger from '../../utils/logger.js';
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
-
-export default function createGemini({ model: moduleModel } = {}) {
-  const apiKey = env('GEMINI_API_KEY');
+export default function createGemini({ model: moduleModel, apiKey: suppliedApiKey } = {}) {
+  const apiKey = suppliedApiKey || env('GEMINI_API_KEY');
   const envModel = env('GEMINI_MODEL');
 
   if (!apiKey) {
@@ -19,11 +17,12 @@ export default function createGemini({ model: moduleModel } = {}) {
   const genAI = new GoogleGenerativeAI(apiKey);
 
   function pickModel(optsModel) {
-    return optsModel || moduleModel || envModel || DEFAULT_MODEL;
+    return optsModel || moduleModel || envModel || null;
   }
 
   async function gen(prompt, opts = {}) {
     const modelKey = pickModel(opts.model);
+    if (!modelKey) return { text: '', raw: { error: 'Gemini model is not configured.' } };
     const payloadText = String(prompt || '');
     const systemText = String(opts.system || '').trim();
     const tried = [];
@@ -108,7 +107,7 @@ export default function createGemini({ model: moduleModel } = {}) {
 
     // If we reach here, none of the invocation styles returned text; return an error
     const errMsg = `No valid response from Gemini SDK (tried: ${tried.join(', ')})`;
-    const suggestion = "Ensure @google/generative-ai is installed and up-to-date, and that GEMINI_MODEL is set. Try: npm install @google/generative-ai && export GEMINI_MODEL=gemini-2.5-flash";
+    const suggestion = 'Ensure @google/generative-ai is installed and select a model with `acommit model`.';
     return { text: '', raw: { error: errMsg, suggestion } };
   }
 

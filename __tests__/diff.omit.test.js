@@ -1,6 +1,14 @@
 import { normalize, DEFAULTS } from '../src/core/config/schema.js';
+import { DiffCollector } from '../src/core/diff/collector.js';
 import { matchesAnyGlob } from '../src/core/ignore/match.js';
 import { LABELS } from '../src/core/constants.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 describe('diff.omitContent / diff.skip', () => {
   test('defaults include lockfile omitContent and dist skip', () => {
@@ -33,6 +41,26 @@ describe('diff.omitContent / diff.skip', () => {
     const patterns = DEFAULTS.diff.skip;
     expect(matchesAnyGlob(patterns, 'dist/web/index.html')).toBe(true);
     expect(matchesAnyGlob(patterns, 'package-lock.json')).toBe(false);
+  });
+
+  test('DiffCollector always excludes node_modules even without gitignore', async () => {
+    const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'acommit-diff-'));
+    try {
+      await execFileAsync('git', ['init'], { cwd });
+      await fs.mkdir(path.join(cwd, 'node_modules/.pnpm/yaml@2.9.0/node_modules/yaml'), { recursive: true });
+      await fs.mkdir(path.join(cwd, 'src'), { recursive: true });
+      await fs.writeFile(
+        path.join(cwd, 'node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/index.js'),
+        'module.exports = {};\n',
+        'utf8',
+      );
+      await fs.writeFile(path.join(cwd, 'src/index.js'), 'console.log("ok");\n', 'utf8');
+
+      const dc = new DiffCollector({ cwd, skip: [] });
+      await expect(dc.listFiles()).resolves.toEqual(['src/index.js']);
+    } finally {
+      await fs.rm(cwd, { recursive: true, force: true });
+    }
   });
 });
 

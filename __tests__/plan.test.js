@@ -1,4 +1,5 @@
 import {
+  buildCommitPlan,
   buildRulesCommitPlan,
   usesLlmPlan,
 } from '../src/core/grouping/plan.js';
@@ -33,6 +34,27 @@ describe('buildRulesCommitPlan', () => {
     });
     expect(plan.groups).toHaveLength(1);
     expect(plan.groups[0].files).toHaveLength(12);
+  });
+});
+
+describe('buildCommitPlan', () => {
+  test('falls back to heuristic draft when LLM plan is not valid JSON', async () => {
+    const files = ['README.md', 'src/a.js'];
+    const plan = await buildCommitPlan({
+      files,
+      cfg: {
+        grouping: { mode: 'by-similarity', threshold: 0.6, minFilesPerGroup: 1 },
+        tags: { enabled: true, list: ['docs', 'feat'] },
+        ignore: { tagsForPaths: { '*.md': 'docs' } },
+        llm: { maxOutputTokens: 4000 },
+      },
+      diffByFile: new Map(files.map((file) => [file, ''])),
+      client: { gen: async () => ({ text: 'I cannot return JSON for this plan.' }) },
+    });
+
+    expect(plan.source).toBe('rules');
+    expect(plan.repairs[0]).toContain('LLM grouping plan failed');
+    expect(plan.groups.flatMap((g) => g.files).sort()).toEqual(files);
   });
 });
 
@@ -100,6 +122,44 @@ describe('repairCommitPlan', () => {
     const { plan: repaired } = repairCommitPlan(plan, ['a.js', 'b.js'], draft);
     const flat = repaired.groups.flatMap((g) => g.files).sort();
     expect(flat).toEqual(['a.js', 'b.js']);
+  });
+
+  test('splits files with forced path tags away from conflicting plan tags', () => {
+    const cfg = {
+      tags: { enabled: true, list: ['docs', 'feat'] },
+      grouping: { mode: 'by-similarity' },
+      ignore: { tagsForPaths: { '*.md': 'docs' } },
+    };
+    const files = ['README.md', 'skills/mykit/SKILL.md', 'src/feature.js'];
+    const draft = buildRulesCommitPlan(files, cfg);
+    const plan = {
+      version: 1,
+      source: 'llm',
+      mode: 'by-similarity',
+      groups: [
+        {
+          files,
+          tag: 'feat',
+          rationale: 'add mykit feature',
+        },
+      ],
+    };
+
+    const { plan: repaired, repairs } = repairCommitPlan(plan, files, draft, cfg);
+    expect(repairs.some((r) => r.includes('forced tag "docs"'))).toBe(true);
+    expect(repaired.groups).toEqual([
+      {
+        files: ['README.md', 'skills/mykit/SKILL.md'],
+        tag: 'docs',
+        rationale: 'add mykit feature; forced by path tag rules',
+      },
+      {
+        files: ['src/feature.js'],
+        tag: 'feat',
+        rationale: 'add mykit feature',
+      },
+    ]);
+    expect(validateCommitGroupPlan(repaired, files, cfg).ok).toBe(true);
   });
 });
 

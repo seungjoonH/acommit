@@ -1,6 +1,6 @@
 {
   "name": "acommit",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "AI-assisted git commit message CLI",
   "bin": {
     "acommit": "./bin/acommit.js"
@@ -8,6 +8,11 @@
   "files": [
     "bin/",
     "src/",
+    "skills/",
+    "references/",
+    ".claude-plugin/",
+    ".codex-plugin/",
+    ".cursor-plugin/",
     "dist/web/",
     "samples/",
     ".env.sample",
@@ -25,8 +30,12 @@
     "jest": "^29.6.1"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "SeungjoonH",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seungjoonH/acommit.git"
+  },
   "type": "module",
   "dependencies": {
     "@clack/prompts": "^0.10.1",

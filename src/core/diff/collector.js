@@ -5,6 +5,17 @@ import { existsFile, isBinary } from "../../utils/file.js";
 import { matchesAnyGlob } from "../ignore/match.js";
 import { LABELS } from "../constants.js";
 
+const SAFETY_SKIP_DIRS = new Set([
+  "node_modules",
+  ".pnpm",
+]);
+
+function isSafetySkipped(filePath) {
+  return String(filePath || "")
+    .split("/")
+    .some((part) => SAFETY_SKIP_DIRS.has(part));
+}
+
 export class DiffCollector {
   #repoChecked = false;
   #isRepo = false;
@@ -47,7 +58,7 @@ export class DiffCollector {
   }
 
   #isSkipped(filePath) {
-    return matchesAnyGlob(this.skip, filePath);
+    return isSafetySkipped(filePath) || matchesAnyGlob(this.skip, filePath);
   }
 
   #omitContent(filePath) {

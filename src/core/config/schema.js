@@ -5,7 +5,7 @@ import { env } from '../../utils/env.js';
 export const DEFAULTS = {
   llm: {
     provider: "gemini",
-    model: "gemini-2.5-flash",
+    model: null,
     maxPromptTokens: 200_000,
     maxOutputTokens: 4_000,
   },
@@ -76,6 +76,14 @@ export const DEFAULTS = {
     compatible: false,
     scope: { enabled: false, inferFromPath: true },
   },
+
+  skill: {
+    // null = unanswered — ask once, then persist the answer here.
+    autoExecuteGit: null,            // boolean | null
+    autoPush: null,                  // boolean | null
+    envGuardMode: null,              // "auto-add" | "ask" | "block" | null
+    confirmPlanBeforeGenerate: null, // boolean | null
+  },
 };
 
 function mergeDefaults(user = {}) {
@@ -95,6 +103,7 @@ function mergeDefaults(user = {}) {
       },
     },
     conventional: { ...DEFAULTS.conventional, ...(user.conventional || {}) },
+    skill:        { ...DEFAULTS.skill,        ...(user.skill || {}) },
   };
 }
 
@@ -171,11 +180,19 @@ export function normalize(user = {}) {
     if (provider === "openai") {
       out.llm.model = env('OPENAI_MODEL') || null;
     } else if (provider === "openrouter") {
-      out.llm.model = env('OPENROUTER_MODEL') || "google/gemini-2.5-flash";
+      out.llm.model = env('OPENROUTER_MODEL') || null;
     } else if (provider === "gemini") {
       out.llm.model = env('GEMINI_MODEL') || DEFAULTS.llm.model;
     }
   }
+
+  // skill.* — leave null (unanswered) as-is; coerce anything else to its expected type.
+  const s = out.skill;
+  const boolOrNull = (v) => (typeof v === "boolean" ? v : null);
+  s.autoExecuteGit = boolOrNull(s.autoExecuteGit);
+  s.autoPush = boolOrNull(s.autoPush);
+  s.confirmPlanBeforeGenerate = boolOrNull(s.confirmPlanBeforeGenerate);
+  if (!["auto-add", "ask", "block"].includes(s.envGuardMode)) s.envGuardMode = null;
 
   return out;
 }

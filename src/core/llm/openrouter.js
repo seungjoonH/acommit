@@ -2,11 +2,10 @@ import OpenAI from 'openai';
 import { env } from '../../utils/env.js';
 import logger from '../../utils/logger.js';
 
-const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 const BASE_URL = 'https://openrouter.ai/api/v1';
 
-export default function createOpenRouterClient({ model: moduleModel } = {}) {
-  const apiKey = env('OPENROUTER_API_KEY');
+export default function createOpenRouterClient({ model: moduleModel, apiKey: suppliedApiKey } = {}) {
+  const apiKey = suppliedApiKey || env('OPENROUTER_API_KEY');
   if (!apiKey) {
     const suggestion = 'Add OPENROUTER_API_KEY (or ACOMMIT_OPENROUTER_API_KEY) to your .env file.';
     logger.error(`OPENROUTER_API_KEY is not set. ${suggestion}`, { exit: false });
@@ -23,7 +22,7 @@ export default function createOpenRouterClient({ model: moduleModel } = {}) {
   });
 
   function pickModel(optsModel) {
-    return optsModel || moduleModel || env('OPENROUTER_MODEL') || DEFAULT_MODEL;
+    return optsModel || moduleModel || env('OPENROUTER_MODEL') || null;
   }
 
   async function gen(prompt, opts = {}) {

@@ -92,7 +92,6 @@ ignore:
     "*.lock": "chore"
 
 llm:
-  provider: "gemini"        # "gemini" 또는 "openai"
   maxPromptTokens: 200000   # 프롬프트 토큰 상한(안전장치)
   maxOutputTokens: 4000     # 출력 토큰 상한(안전장치)
 

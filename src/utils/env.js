@@ -3,21 +3,22 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-let loaded = false;
+const loadedCwds = new Set();
 
 export function loadEnv(cwd = process.cwd()) {
-  if (loaded) return;
-  loaded = true;
+  const resolved = path.resolve(cwd);
+  if (loadedCwds.has(resolved)) return;
+  loadedCwds.add(resolved);
 
-  const candidates = [
-    path.join(cwd, '.env'),
-    path.join(os.homedir(), '.acommit', '.env'),
-  ];
+  const candidates = [path.join(cwd, '.env'), path.join(os.homedir(), '.acommit', '.env')];
 
   for (const file of candidates) {
     try {
       if (fs.existsSync(file)) {
-        dotenv.config({ path: file, quiet: true });
+        const parsed = dotenv.parse(fs.readFileSync(file));
+        for (const [key, value] of Object.entries(parsed)) {
+          if (process.env[key] === undefined) process.env[key] = value;
+        }
       }
     } catch {
       // ignore unreadable .env files

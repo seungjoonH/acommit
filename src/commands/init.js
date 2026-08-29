@@ -6,7 +6,6 @@ import { normalize, DEFAULTS } from '../core/config/schema.js';
 import { defaultStyleForMessageLang } from '../core/message/styles.js';
 import { writeLocale, normalizeLocale } from '../core/locale.js';
 import { selectOption, createTuiSession, pc, clack } from '../ui/tui.js';
-import { pickLlmConfig } from '../ui/llm-pick.js';
 import { initStrings, LOCALE_PICK } from '../ui/init-i18n.js';
 import logger from '../utils/logger.js';
 
@@ -19,7 +18,7 @@ const TEMPLATE_PATHS = {
 
 function toSerializable(cfg) {
   const out = {
-    llm: cfg.llm,
+    llm: { maxPromptTokens: cfg.llm.maxPromptTokens, maxOutputTokens: cfg.llm.maxOutputTokens },
     message: cfg.message,
     prompts: cfg.prompts ?? [],
     tags: { ...cfg.tags },
@@ -67,12 +66,13 @@ async function readGitignore(cwd) {
 
 async function applyGitignoreChoice(cwd, choice) {
   const entry = gitignoreEntry(choice);
-  if (!entry) return false;
+  const required = choice === 'all' ? [entry] : [entry, '.acommit/settings.local.yml'].filter(Boolean);
+  if (!required.length) return false;
 
   const { path: gitignorePath, content } = await readGitignore(cwd);
-  if (content.includes(entry)) return false;
-
-  const updated = content.trimEnd() + (content.length ? '\n' : '') + `${entry}\n`;
+  const missing = required.filter((line) => !content.split(/\r?\n/).includes(line));
+  if (!missing.length) return false;
+  const updated = content.trimEnd() + (content.length ? '\n' : '') + `${missing.join('\n')}\n`;
   await fs.writeFile(gitignorePath, updated, 'utf8');
   return true;
 }
@@ -144,14 +144,6 @@ async function askRulesOptions(tui, t) {
   });
   if (!tagsEnabled) return null;
 
-  const llm = await pickLlmConfig({
-    session: tui,
-    step: t.llm.step,
-    labels: t.llmPick,
-    current: { provider: DEFAULTS.llm.provider, model: DEFAULTS.llm.model },
-  });
-  if (!llm) return null;
-
   const conventional = await pick(tui, {
     step: t.conventional.step,
     subtitle: t.conventional.subtitle,
@@ -194,8 +186,6 @@ async function askRulesOptions(tui, t) {
       mode: groupingMode,
     },
     llm: {
-      provider: llm.provider,
-      model: llm.model,
       maxPromptTokens: DEFAULTS.llm.maxPromptTokens,
       maxOutputTokens: DEFAULTS.llm.maxOutputTokens,
     },
@@ -242,8 +232,10 @@ export async function initConfig({
 
   try {
     await fs.access(target);
+    await ensureWorkspace(acomDir);
+    await applyGitignoreChoice(cwd, gitignore ?? 'results');
     logger.info(`[acommit] .acommit/rules.yml already exists at ${target}`);
-    logger.info('[acommit] Delete it first or edit with `acommit rules`.');
+    logger.info('[acommit] Existing rules were preserved. Use `acommit rules` to edit them.');
     return;
   } catch { /* ok */ }
 
