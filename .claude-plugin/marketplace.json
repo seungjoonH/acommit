@@ -1,0 +1,29 @@
+{
+  "name": "acommit",
+  "id": "acommit",
+  "owner": {
+    "name": "seungjoonH"
+  },
+  "metadata": {
+    "description": "Infer repository commit conventions and generate safe, validated commits.",
+    "version": "0.4.0"
+  },
+  "plugins": [
+    {
+      "name": "acommit",
+      "source": "./",
+      "description": "Infer repository commit conventions and generate safe, validated commits.",
+      "version": "0.4.0",
+      "author": {
+        "name": "Seungjoon H"
+      },
+      "keywords": [
+        "git",
+        "commit",
+        "agent-skills",
+        "conventional-commits"
+      ],
+      "category": "development"
+    }
+  ]
+}
