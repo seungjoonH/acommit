@@ -13,5 +13,23 @@
     "commit",
     "agent-skills",
     "conventional-commits"
-  ]
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "acommit",
+    "shortDescription": "Infer rules and create safe AI commits.",
+    "longDescription": "Analyze Git history to infer repository conventions, then group changes and generate validated commits without mixing unrelated staged files.",
+    "developerName": "Seungjoon H",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Shell"
+    ],
+    "websiteURL": "https://github.com/seungjoonH/acommit",
+    "defaultPrompt": [
+      "Infer commit rules from this repository's Git history.",
+      "Group my changes and generate validated commits."
+    ]
+  }
 }
