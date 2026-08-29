@@ -1,12 +1,19 @@
 {
   "name": "acommit",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Infer repository commit conventions and generate safe, validated commits.",
-  "author": { "name": "Seungjoon H" },
+  "author": {
+    "name": "Seungjoon H"
+  },
   "homepage": "https://github.com/seungjoonH/acommit",
   "repository": "https://github.com/seungjoonH/acommit",
   "license": "MIT",
-  "keywords": ["git", "commit", "agent-skills", "conventional-commits"],
+  "keywords": [
+    "git",
+    "commit",
+    "agent-skills",
+    "conventional-commits"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "acommit",
@@ -14,7 +21,11 @@
     "longDescription": "Analyze Git history to infer repository conventions, then group changes and generate validated commits without mixing unrelated staged files.",
     "developerName": "Seungjoon H",
     "category": "Productivity",
-    "capabilities": ["Read", "Write", "Shell"],
+    "capabilities": [
+      "Read",
+      "Write",
+      "Shell"
+    ],
     "websiteURL": "https://github.com/seungjoonH/acommit",
     "defaultPrompt": [
       "Infer commit rules from this repository's Git history.",

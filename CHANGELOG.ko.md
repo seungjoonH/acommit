@@ -2,7 +2,22 @@
 
 ---
 
-## v0.3.2 — 2026-07-21
+## v0.4.0 — 2026-08-30
+
+### 에이전트 플러그인으로 사용
+
+- **Claude Code / Codex / Cursor 지원** — acommit을 각 도구의 플러그인으로 설치해 `/acommit:commit`(Claude Code), `$commit`(Codex), `/commit`(Cursor) 등 5개 skill(`commit`/`init`/`config`/`infer-rules`/`result`)로 바로 사용
+- **에이전트 백엔드** — LLM API 호출 없이 에이전트가 직접 diff를 읽고 그룹핑·커밋 메시지를 판단, 실행 전 규칙 위반 자동 검증
+- **API 백엔드** — `acommit commit --headless --json`으로 실제 LLM API를 무인 실행, 에이전트 백엔드와 동일한 결과 형식 유지
+
+### 개인 설정 분리
+
+- **`.acommit/settings.local.yml` 도입** — 자동 실행 여부, push 여부, env 보호 방식 등 개인 실행 설정을 팀 공용 `rules.yml`과 분리해 관리 (gitignore 대상)
+- **provider/model 실시간 조회** — Gemini/OpenAI/OpenRouter 모델 목록을 하드코딩 대신 실제 API에서 가져와 최신 상태 유지
+
+### 히스토리 기반 규칙 추천
+
+- **과거 커밋 분석** — 기존 git 로그를 분석해 언어·태그·그룹핑 방식 등 `rules.yml` 초안을 자동으로 제안
 
 ### 보안 및 안전성
 
@@ -15,6 +30,11 @@
 - **ignored 경로 자동 제외** — 결과 뷰어에서 `git add node_modules src/a.js`처럼 ignored 경로가 섞여 있으면 ignored 경로만 빼고 나머지 파일만 staging
 - **ignored-only 커밋 자동 스킵** — 커밋 대상이 `node_modules`처럼 ignored 경로뿐이면 `git commit`을 실행하지 않고 해당 커밋을 건너뜀
 - **친절한 Git 에러 메시지** — `.gitignore` 때문에 `git add`가 실패하는 경우 Git 원문 대신 원인과 다음 행동을 설명하는 메시지 표시
+
+### 안정성 개선
+
+- **커밋 텍스트 파싱 순서 수정** — 특정 조건에서 값이 정의되기 전에 참조되던 문제 수정
+- **그룹핑 실패 시 복구** — 그룹핑 판단이 유효하지 않은 응답을 반환해도 오류로 중단하는 대신 규칙 기반 초안으로 대체
 
 ---
 

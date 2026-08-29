@@ -2,7 +2,22 @@
 
 ---
 
-## v0.3.2 — 2026-07-21
+## v0.4.0 — 2026-08-30
+
+### Use as an agent plugin
+
+- **Claude Code / Codex / Cursor support** — install acommit as a plugin for each tool and use it directly as 5 skills (`commit`/`init`/`config`/`infer-rules`/`result`) via `/acommit:commit` (Claude Code), `$commit` (Codex), or `/commit` (Cursor)
+- **Agent backend** — the agent reads the diff and decides grouping/commit messages itself with no LLM API call, with rule-violation checks run automatically before execution
+- **API backend** — `acommit commit --headless --json` runs a real LLM API unattended, producing the same result shape as the agent backend
+
+### Personal settings, separated
+
+- **`.acommit/settings.local.yml`** — personal execution settings (auto-execute, auto-push, env-guard mode) now live separately from the shared `rules.yml` (gitignored)
+- **Live provider/model discovery** — Gemini/OpenAI/OpenRouter model lists are fetched from the real API instead of a hardcoded list
+
+### History-based rule suggestions
+
+- **Analyze past commits** — infers a draft `rules.yml` (language, tags, grouping mode, etc.) from your existing git log
 
 ### Security & Safety
 
@@ -15,6 +30,11 @@
 - **Auto-remove ignored paths** — when result execution sees mixed commands like `git add node_modules src/a.js`, ignored paths are removed and the remaining files are staged
 - **Skip ignored-only commits** — if a commit contains only ignored paths such as `node_modules`, the paired `git commit` is skipped instead of failing repeatedly
 - **Friendlier Git errors** — `.gitignore`-related `git add` failures are rewritten with a clear explanation and next steps
+
+### Stability
+
+- **Fixed commit-text parsing order** — fixed a case where a value was referenced before it was defined
+- **Recover from bad grouping responses** — falls back to a rules-based draft plan instead of aborting when a grouping response is invalid
 
 ---
 
