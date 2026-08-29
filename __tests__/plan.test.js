@@ -1,4 +1,5 @@
 import {
+  buildCommitPlan,
   buildRulesCommitPlan,
   usesLlmPlan,
 } from '../src/core/grouping/plan.js';
@@ -33,6 +34,27 @@ describe('buildRulesCommitPlan', () => {
     });
     expect(plan.groups).toHaveLength(1);
     expect(plan.groups[0].files).toHaveLength(12);
+  });
+});
+
+describe('buildCommitPlan', () => {
+  test('falls back to heuristic draft when LLM plan is not valid JSON', async () => {
+    const files = ['README.md', 'src/a.js'];
+    const plan = await buildCommitPlan({
+      files,
+      cfg: {
+        grouping: { mode: 'by-similarity', threshold: 0.6, minFilesPerGroup: 1 },
+        tags: { enabled: true, list: ['docs', 'feat'] },
+        ignore: { tagsForPaths: { '*.md': 'docs' } },
+        llm: { maxOutputTokens: 4000 },
+      },
+      diffByFile: new Map(files.map((file) => [file, ''])),
+      client: { gen: async () => ({ text: 'I cannot return JSON for this plan.' }) },
+    });
+
+    expect(plan.source).toBe('rules');
+    expect(plan.repairs[0]).toContain('LLM grouping plan failed');
+    expect(plan.groups.flatMap((g) => g.files).sort()).toEqual(files);
   });
 });
 

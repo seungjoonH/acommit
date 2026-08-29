@@ -28,6 +28,14 @@ export function buildRulesCommitPlan(files, cfg) {
   };
 }
 
+function fallbackToDraftPlan(draft, reason) {
+  return {
+    ...draft,
+    source: 'rules',
+    repairs: [`used heuristic draft because LLM grouping plan failed: ${reason}`],
+  };
+}
+
 /**
  * Build commit grouping plan.
  * - Structural modes → rules only (no LLM).
@@ -87,6 +95,6 @@ export async function buildCommitPlan({
     }
     return plan;
   } catch (err) {
-    throw new Error(`invalid grouping plan: ${err.message}`);
+    return fallbackToDraftPlan(draft, err?.message || String(err));
   }
 }
