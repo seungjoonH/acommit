@@ -1,0 +1,4 @@
+interface:
+  display_name: "acommit Init"
+  short_description: "Initialize acommit and choose its commit backend"
+  default_prompt: "Use $init to initialize acommit safely in this repository."

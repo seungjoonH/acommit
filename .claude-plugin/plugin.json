@@ -1,0 +1,10 @@
+{
+  "name": "acommit",
+  "version": "0.3.2",
+  "description": "Infer repository commit conventions and generate safe, validated commits.",
+  "author": { "name": "Seungjoon H" },
+  "homepage": "https://github.com/seungjoonH/acommit",
+  "repository": "https://github.com/seungjoonH/acommit",
+  "license": "MIT",
+  "keywords": ["git", "commit", "agent-skills", "conventional-commits"]
+}

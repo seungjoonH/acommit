@@ -1,0 +1,4 @@
+interface:
+  display_name: "acommit Config"
+  short_description: "Configure acommit through natural language"
+  default_prompt: "Use $config to inspect or change my acommit configuration."
